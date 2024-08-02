@@ -11,10 +11,14 @@ frozenlist==1.4.1
 idna==3.7
 magic-filter==1.0.12
 multidict==6.0.5
+pyaes==1.6.1
+pyasn1==0.6.0
 pydantic==2.8.2
 pydantic_core==2.20.1
 pytz==2024.1
+rsa==4.9
 six==1.16.0
+Telethon==1.36.0
 typing_extensions==4.12.2
 tzlocal==5.2
 yarl==1.9.4
