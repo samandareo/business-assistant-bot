@@ -54,17 +54,11 @@ async def handle_start(message: Message) -> None:
         user_data_query = f"INSERT INTO bot_users (user_id, username, name, phone_number, created_at) VALUES ($1, $2, $3, $4, NOW()) ON CONFLICT (user_id) DO NOTHING;"
         await db.execute_query(user_data_query,(str(message.from_user.id), message.from_user.username, message.from_user.first_name, phone_number))
         
-
-        user_additions_query = f"INSERT INTO bot_users_additions (user_id) VALUES ({str(message.from_user.id)}) ON CONFLICT (user_id) DO NOTHING;"
-        await db.execute_query(user_additions_query)
     else:
         await message.reply(f"Assalomu alekum, {message.from_user.first_name}. \nXush kelibsiz!")
 
         user_data_query = f"INSERT INTO bot_users (user_id, username, name, phone_number, created_at) VALUES ($1, $2, $3, $4, NOW()) ON CONFLICT (user_id) DO NOTHING;"
         await db.execute_query(user_data_query,(str(message.from_user.id), message.from_user.username, message.from_user.first_name, None))
-        
-        user_additions_query = f"INSERT INTO bot_users_additions (user_id) VALUES ({str(message.from_user.id)}) ON CONFLICT (user_id) DO NOTHING;"
-        await db.execute_query(user_additions_query)
 
 
 @dp.message(UserState.message_text_id)
@@ -112,7 +106,7 @@ async def send_to_all(message: Message, state: FSMContext) -> None:
             await bot.send_message(chat_id=user['user_id'], text=message_text.replace("$name",user['name']), disable_web_page_preview=True)
         except Exception as e:
             if 'Forbidden' in str(e):
-                await db.execute_query(f"DELETE FROM bot_users USING bot_users_additions WHERE bot_users.user_id = bot_users_additions.user_id AND bot_users.user_id = '{user['user_id']}';")
+                await db.execute_query(f"DELETE FROM bot_users WHERE bot_users.user_id = '{user['user_id']}';")
             print(e)
             continue
         print(f"Message sent to {user['name']} ({user['user_id']})")
@@ -134,9 +128,9 @@ async def take_input(message: Message, state: FSMContext):
 
 async def main() -> None:
 
-    scheduler = AsyncIOScheduler()
-    scheduler.add_job(fns.send_message_to_users, 'interval', hours=2)
-    scheduler.start()
+    # scheduler = AsyncIOScheduler()
+    # scheduler.add_job(fns.send_message_to_users, 'interval', hours=2)
+    # scheduler.start()
     await dp.start_polling(bot)
 
 if __name__ == '__main__':
