@@ -15,7 +15,10 @@ from aiogram.types import Message
 
 import database as db
 import functions as fns
-from State.userState import UserState, AdminState
+from State.userState import UserState, AdminState, AdminStateOne
+
+from credentials import admins
+
 
 from credentials import BOT_TOKEN, CHANNEL_ID
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
@@ -44,7 +47,7 @@ async def handle_start(message: Message) -> None:
 
         if match:
             msg_id = int(match.group(1))
-
+        print("Yaxshi ishlavotti")
         await message.reply(f"Assalomu alaykum, {message.from_user.first_name}!")
         
         # Forward book from private channel to user
@@ -63,23 +66,24 @@ async def handle_start(message: Message) -> None:
 
 @dp.message(UserState.message_text_id)
 async def take_id(message: Message, state: FSMContext) -> None:
-    if message.text == '!cancel':
+    stop_msg_text = str(message.text)
+    if stop_msg_text == '!cancel':
         await state.clear()
-        message.answer("The process has been canceled.")
+        await message.reply("Jarayon bekor qilindi!")
         return
     elif not message.text.isdigit():
-        await message.answer("Please enter the correct message number.")
+        await message.reply("Please enter the correct message number.")
         await state.set_state(UserState.message_text_id)
         return
     await state.update_data(message_text_id=message.text)
-    await message.answer("Please enter the new message text.")
+    await message.reply("Please enter the new message text.")
     await state.set_state(UserState.message_text)
 
 @dp.message(UserState.message_text)
 async def take_text(message: Message, state: FSMContext) -> None:
-    if message.text == '!cancel':
+    if message.text == '!stop':
         await state.clear()
-        message.answer("The process has been canceled.")
+        await message.reply("Jarayon bekor qilindi!")
         return
     new_data = await state.get_data()
     message_text_id = new_data.get('message_text_id')
@@ -99,7 +103,11 @@ async def take_text(message: Message, state: FSMContext) -> None:
 @dp.message(AdminState.message_text)
 async def send_to_all(message: Message, state: FSMContext) -> None:
     message_text = message.text
-
+    if message_text == "!cancel":
+        await message.reply("Jarayon bekor qilindi!")
+        await state.clear()
+        return
+    
     users = await db.fetch_query("SELECT user_id, name FROM bot_users;")
     for user in users:
         try:
@@ -113,18 +121,68 @@ async def send_to_all(message: Message, state: FSMContext) -> None:
         await asyncio.sleep(1)
     await state.clear()
 
+@dp.message(AdminStateOne.userOneId)
+async def take_message_one(message: Message, state: FSMContext) -> None:
+    msg_text = str(message.text)
+    print(msg_text)
+    if msg_text == '!cancel':
+        await message.reply("Jarayon bekor qilindi!")
+        await state.clear()
+        return
+    else:
+        wait_message = await message.answer("Foydalanuvchi qidirilmoqda...")
+        check = await db.fetch_query("SELECT * FROM bot_users WHERE user_id = $1;", (msg_text,))
+
+    if not check:
+        await wait_message.edit_text("Foydalanuvchi topilmadi😕")
+        await state.clear()
+        return
+    else:
+        await state.update_data(user_id=message.text)
+        found_msg_text = f"Foydalanuvchi topildi.\nUser ID: {check[0]['user_id']}\nName: {check[0]['name']}\nUsername: {check[0]['username']}\nPhone number: {check[0]['phone_number']}\n\nFoydalanuvchiga yuborishni xoxlagan xabarni kiriting."
+        await wait_message.edit_text(found_msg_text)
+        await state.set_state(AdminStateOne.message_text)
+
+@dp.message(AdminStateOne.message_text)
+async def send_to_one(message: Message, state: FSMContext) -> None:
+    if message.text == '!stop':
+        await message.reply("Jarayon bekor qilindi!")
+        await state.clear()
+        return
+    await state.update_data(message_text=message.text)
+    new_data = await state.get_data()
+    user_id = new_data.get('user_id')
+    message_text = new_data.get('message_text')
+    user = await db.fetch_query(f"SELECT name FROM bot_users WHERE user_id = '{user_id}';")
+    try:
+        await bot.send_message(chat_id=user_id, text=message_text.replace("$name", user[0]['name']), disable_web_page_preview=True)
+    except Exception as e:
+        if 'Forbidden' in str(e):
+            await db.execute_query(f"DELETE FROM bot_users WHERE bot_users.user_id = '{user_id}';")
+        print(e)
+    await state.clear()
+
 @dp.message()
 async def take_input(message: Message, state: FSMContext):
-    print(message.text)
-    if message.text == '/change_message':
-        await message.answer("Please enter the message number you want to change.")
-        await state.set_state(UserState.message_text_id)
+    if message.from_user.id in admins:
+        if message.text == '/change_message':
+            await message.answer("Please enter the message number you want to change.")
+            await state.set_state(UserState.message_text_id)
+            return
+        elif message.text == '/send':
+            await message.answer("Foydalanuvchilarga yuborishni xoxlagan xabarni kiriting.")
+            await state.set_state(AdminState.message_text)
+            return
+        elif message.text == '/sendOne':
+            await message.answer("Foydalanuvchini ID raqamini kiriting.")
+            await state.set_state(AdminStateOne.userOneId)
+            return
+    else:
+        await message.answer("Siz admin emassiz!")
+        print("It is not admin")
         return
-    elif message.text == '/send':
-        await message.answer("Foydalanuvchilarga yuborishni xoxlagan xabarni kiriting.")
-        await state.set_state(AdminState.message_text)
-        return
-    
+
+
 
 async def main() -> None:
 

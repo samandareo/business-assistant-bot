@@ -6,3 +6,7 @@ class UserState(StatesGroup):
 
 class AdminState(StatesGroup):
     message_text = State()
+
+class AdminStateOne(StatesGroup):
+    userOneId = State()
+    message_text = State()

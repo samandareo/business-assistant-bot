@@ -11,17 +11,36 @@ from bot import dp, bot
 
 async def get_users(time, msg_id):
     try:
-        msg_id = tuple(msg_id)
-        query = f"SELECT bu.user_id, bu.name, bua.cur_msg_id FROM bot_users as bu, bot_users_additions as bua, end_users as eu WHERE bu.user_id = bua.user_id and bu.phone_number != eu.phone_number and bua.updated_at <= '{time}' and bua.cur_msg_id IN {msg_id} and bua.is_check = true;"
-        return await fetch_query(query)
+        if not isinstance(msg_id, tuple):
+            msg_id = tuple(msg_id)
+        query = """
+        SELECT bu.user_id, bu.name, bu.cur_msg_id 
+        FROM bot_users as bu 
+        LEFT JOIN end_users as eu ON bu.phone_number = eu.phone_number 
+        WHERE eu.phone_number IS NULL 
+            AND bu.updated_at <= '$1' 
+            AND bu.cur_msg_id = ANY($2::int[]) 
+            AND bu.is_check = true;
+        """
+        params = [time, list(msg_id)]
+        return await fetch_query(query=query,params=params)
     except Exception as e:
         print(e)
         return None
 
 async def get_users_for_first(time):
     try:
-        query = f"SELECT bu.user_id, bu.name, bua.cur_msg_id FROM bot_users as bu, bot_users_additions as bua, end_users as eu WHERE bu.user_id = bua.user_id and bu.phone_number != eu.phone_number and bu.created_at <= '{time}' and bua.cur_msg_id = 1 and bua.is_check = true;"
-        return await fetch_query(query)
+        query = """
+        SELECT bu.user_id, bu.name, bu.cur_msg_id 
+        FROM bot_users as bu 
+        LEFT JOIN end_users as eu ON bu.phone_number = eu.phone_number
+        WHERE eu.phone_number IS NULL 
+          AND bu.created_at <= $1 
+          AND bu.cur_msg_id = 1 
+          AND bu.is_check = true;
+        """
+        params = [time]
+        return await fetch_query(query=query,params=params)
     except Exception as e:
         print(e)
         return None
@@ -40,10 +59,10 @@ async def send_first_message():
         msg_id = user['cur_msg_id'] + 1
         try:
             await bot.send_message(chat_id=user['user_id'], text=data.replace('$name', user['name']), disable_web_page_preview=True)
-            await execute_query(f"UPDATE bot_users_additions SET updated_at = '{datetime.now()}',cur_msg_id = {msg_id} WHERE user_id = '{user['user_id']}';")
+            await execute_query(f"UPDATE bot_users SET updated_at = '$1',cur_msg_id = $2 WHERE user_id = '$3';", (datetime.now(), msg_id, user['user_id']))
         except Exception as e:
             if 'Forbidden' in str(e):
-                await execute_query(f"DELETE FROM bot_users USING bot_users_additions WHERE bot_users.user_id = bot_users_additions.user_id AND bot_users.user_id = '{user['user_id']}';")
+                await execute_query(f"DELETE FROM bot_users WHERE bot_users.user_id = '$1';", (user['user_id'],))
             print(e)
             continue
         print(f"Message sent to {user['name']} ({user['user_id']})")
@@ -67,10 +86,10 @@ async def send_24_messages():
         if user['cur_msg_id'] != 4:
             try:
                 await bot.send_message(chat_id=user['user_id'], text=data[f"msg{user['cur_msg_id']}"].replace('$name', user['name']), disable_web_page_preview=True)
-                await execute_query(f"UPDATE bot_users_additions SET updated_at = '{datetime.now()}',cur_msg_id = {msg_id} WHERE user_id = '{user['user_id']}';")
+                await execute_query(f"UPDATE bot_users SET updated_at = '$1',cur_msg_id = $2 WHERE user_id = '$3';", (datetime.now(), msg_id, user['user_id']))
             except Exception as e:
                 if 'Forbidden' in str(e):
-                    await execute_query(f"DELETE FROM bot_users USING bot_users_additions WHERE bot_users.user_id = bot_users_additions.user_id AND bot_users.user_id = '{user['user_id']}';")
+                    await execute_query(f"DELETE FROM bot_users WHERE bot_users.user_id = '$1';", (user['user_id'],))
                 print(e)
                 continue
             print(f"Message sent to {user['name']} ({user['user_id']})")
@@ -79,10 +98,10 @@ async def send_24_messages():
                 await bot.send_message(chat_id=user['user_id'], text=data[f"msg{user['cur_msg_id']}1"].replace('$name', user['name']), disable_web_page_preview=True)
                 await bot.copy_message(chat_id=user['user_id'], from_chat_id=-1002151076535, message_id=18)
                 await bot.send_message(chat_id=user['user_id'], text=data[f"msg{user['cur_msg_id']}2"].replace('$name', user['name']), disable_web_page_preview=True)
-                await execute_query(f"UPDATE bot_users_additions SET updated_at = '{datetime.now()}',cur_msg_id = {msg_id} WHERE user_id = '{user['user_id']}';")
+                await execute_query(f"UPDATE bot_users SET updated_at = '$1',cur_msg_id = $2 WHERE user_id = '$3';", (datetime.now(), msg_id, user['user_id']))
             except Exception as e:
                 if 'Forbidden' in str(e):
-                    await execute_query(f"DELETE FROM bot_users USING bot_users_additions WHERE bot_users.user_id = bot_users_additions.user_id AND bot_users.user_id = '{user['user_id']}';")
+                    await execute_query(f"DELETE FROM bot_users WHERE bot_users.user_id = '$1';", (user['user_id'],))
                 print(e)
                 continue
             print(f"Message sent to {user['name']} ({user['user_id']})")
@@ -104,10 +123,10 @@ async def send_48_messages():
         msg_id = user['cur_msg_id'] + 1
         try:
             await bot.send_message(chat_id=user['user_id'], text=data[f"msg{user['cur_msg_id']}"].replace('$name', user['name']), disable_web_page_preview=True)
-            await execute_query(f"UPDATE bot_users_additions SET updated_at = '{datetime.now()}',cur_msg_id = {msg_id} WHERE user_id = '{user['user_id']}';")
+            await execute_query(f"UPDATE bot_users SET updated_at = '$1',cur_msg_id = $2 WHERE user_id = '$3';", (datetime.now(), msg_id, user['user_id']))
         except Exception as e:
             if 'Forbidden' in str(e):
-                await execute_query(f"DELETE FROM bot_users USING bot_users_additions WHERE bot_users.user_id = bot_users_additions.user_id AND bot_users.user_id = '{user['user_id']}';")
+                await execute_query(f"DELETE FROM bot_users WHERE bot_users.user_id = '$1';", (user['user_id'],))
             print(e)
             continue
         await asyncio.sleep(0.7)
