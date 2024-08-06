@@ -11,7 +11,7 @@ from aiogram.filters.command import CommandStart
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.fsm.context import FSMContext
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import Message, CallbackQuery, ReplyKeyboardRemove
 
 import database as db
 import functions as fns
@@ -22,7 +22,7 @@ from credentials import admins
 
 
 from credentials import BOT_TOKEN, CHANNEL_ID, APPEAL_CHANNEL_ID, TEST_BOT_TOKEN
-bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+bot = Bot(token=TEST_BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 dp = Dispatcher(storage=MemoryStorage())
 
 
@@ -182,12 +182,12 @@ async def send_appeal(callback_data: CallbackQuery, state: FSMContext) -> None:
 
         try:
             await bot.send_message(chat_id=APPEAL_CHANNEL_ID,text=appeal, parse_mode=ParseMode.HTML)
-            await callback_data.message.answer("Murojaatingiz qabul qilindi!",show_alert=True)
+            await callback_data.message.answer("Murojaatingiz qabul qilindi!",show_alert=True, reply_markup=kb.contact_with_admin)
             await callback_data.message.delete()
         except Exception as e:
             print(e)
     elif callback_data.data == "cancel":
-        await callback_data.message.answer("Murojaatingiz bekor qilindi!")
+        await callback_data.message.answer("Murojaatingiz bekor qilindi!", reply_markup=kb.contact_with_admin)
         await callback_data.message.delete()
     await state.clear()
 
@@ -218,7 +218,7 @@ async def take_input(message: Message, state: FSMContext):
         await state.set_state(AdminStateOne.userOneId)
         return
     elif message.text == 'Murojaat':
-        await message.reply("Iltimos, murojaat xabarini yuboring.")
+        await message.reply("Iltimos, murojaat xabarini yuboring.", reply_markup=ReplyKeyboardRemove())
         await state.set_state(UserMessagesToAdmin.message_text)
         return
 
