@@ -10,3 +10,7 @@ class AdminState(StatesGroup):
 class AdminStateOne(StatesGroup):
     userOneId = State()
     message_text = State()
+
+class UserMessagesToAdmin(StatesGroup):
+    message_text = State()
+    message_proove = State()

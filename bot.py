@@ -11,16 +11,17 @@ from aiogram.filters.command import CommandStart
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.fsm.context import FSMContext
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from aiogram.types import Message
+from aiogram.types import Message, CallbackQuery
 
 import database as db
 import functions as fns
-from State.userState import UserState, AdminState, AdminStateOne
+from State.userState import UserState, AdminState, AdminStateOne, UserMessagesToAdmin
+import Keyboards.keyboards as kb
 
 from credentials import admins
 
 
-from credentials import BOT_TOKEN, CHANNEL_ID
+from credentials import BOT_TOKEN, CHANNEL_ID, APPEAL_CHANNEL_ID, TEST_BOT_TOKEN
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 dp = Dispatcher(storage=MemoryStorage())
 
@@ -47,8 +48,7 @@ async def handle_start(message: Message) -> None:
 
         if match:
             msg_id = int(match.group(1))
-        print("Yaxshi ishlavotti")
-        await message.reply(f"Assalomu alaykum, {message.from_user.first_name}!")
+        await message.reply(f"Assalomu alaykum, {message.from_user.first_name}!",reply_markup=kb.contact_with_admin)
         
         # Forward book from private channel to user
         # Replace 'YOUR_CHANNEL_ID' with actual channel ID
@@ -58,7 +58,7 @@ async def handle_start(message: Message) -> None:
         await db.execute_query(user_data_query,(str(message.from_user.id), message.from_user.username, message.from_user.first_name, phone_number))
         
     else:
-        await message.reply(f"Assalomu alekum, {message.from_user.first_name}. \nXush kelibsiz!")
+        await message.reply(f"Assalomu alekum, {message.from_user.first_name}. \nXush kelibsiz!", reply_markup=kb.contact_with_admin)
 
         user_data_query = f"INSERT INTO bot_users (user_id, username, name, phone_number, created_at) VALUES ($1, $2, $3, $4, NOW()) ON CONFLICT (user_id) DO NOTHING;"
         await db.execute_query(user_data_query,(str(message.from_user.id), message.from_user.username, message.from_user.first_name, None))
@@ -162,24 +162,64 @@ async def send_to_one(message: Message, state: FSMContext) -> None:
         print(e)
     await state.clear()
 
+@dp.message(UserMessagesToAdmin.message_text)
+async def take_message(message: Message, state: FSMContext) -> None:
+    if message.text == '!cancel':
+        await message.reply("Jarayon bekor qilindi")
+        await state.clear()
+        return
+    await state.update_data(message_text=message.text)
+    await message.answer("Murojaatingizni tasdiqlaysizmi?", reply_markup=kb.proove_message)
+    await state.set_state(UserMessagesToAdmin.message_proove)
+
+@dp.callback_query(UserMessagesToAdmin.message_proove)
+async def send_appeal(callback_data: CallbackQuery, state: FSMContext) -> None:
+    if callback_data.data == "proove":
+        data = await state.get_data()
+        text = data.get('message_text')
+        appeal = f"🔔🔔 Yangi Murojaat 🔔🔔\n\nFoydalanuvchi ID: {callback_data.from_user.id}\nFoydalanuvchi ismi: {callback_data.from_user.first_name}\nFoydalanuvchi username: @{callback_data.from_user.username}\n\nMurojaat xabari: {text}"
+
+
+        try:
+            await bot.send_message(chat_id=APPEAL_CHANNEL_ID,text=appeal, parse_mode=ParseMode.HTML)
+            await callback_data.message.answer("Murojaatingiz qabul qilindi!",show_alert=True)
+            await callback_data.message.delete()
+        except Exception as e:
+            print(e)
+    elif callback_data.data == "cancel":
+        await callback_data.message.answer("Murojaatingiz bekor qilindi!")
+        await callback_data.message.delete()
+    await state.clear()
+
+
+
+
 @dp.message()
 async def take_input(message: Message, state: FSMContext):
-    if message.from_user.id in admins:
-        if message.text == '/change_message':
-            await message.answer("Please enter the message number you want to change.")
-            await state.set_state(UserState.message_text_id)
+    if message.text == '/change_message':
+        if message.from_user.id not in admins:
+            await message.answer("Siz admin emassiz!")
             return
-        elif message.text == '/send':
-            await message.answer("Foydalanuvchilarga yuborishni xoxlagan xabarni kiriting.")
-            await state.set_state(AdminState.message_text)
+        await message.answer("Please enter the message number you want to change.")
+        await state.set_state(UserState.message_text_id)
+        return
+    elif message.text == '/send':
+        if message.from_user.id not in admins:
+            await message.answer("Siz admin emassiz!")
             return
-        elif message.text == '/sendOne':
-            await message.answer("Foydalanuvchini ID raqamini kiriting.")
-            await state.set_state(AdminStateOne.userOneId)
+        await message.answer("Foydalanuvchilarga yuborishni xoxlagan xabarni kiriting.")
+        await state.set_state(AdminState.message_text)
+        return
+    elif message.text == '/sendOne':
+        if message.from_user.id not in admins:
+            await message.answer("Siz admin emassiz!")
             return
-    else:
-        await message.answer("Siz admin emassiz!")
-        print("It is not admin")
+        await message.answer("Foydalanuvchini ID raqamini kiriting.")
+        await state.set_state(AdminStateOne.userOneId)
+        return
+    elif message.text == 'Murojaat':
+        await message.reply("Iltimos, murojaat xabarini yuboring.")
+        await state.set_state(UserMessagesToAdmin.message_text)
         return
 
 
