@@ -227,7 +227,7 @@ async def take_input(message: Message, state: FSMContext):
 async def main() -> None:
 
     scheduler = AsyncIOScheduler()
-    scheduler.add_job(fns.send_message_to_users, 'interval', minutes=1)
+    scheduler.add_job(fns.send_message_to_users, 'interval', hours=2)
     scheduler.start()
     await dp.start_polling(bot)
 
