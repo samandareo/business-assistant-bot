@@ -22,7 +22,7 @@ from credentials import admins
 
 
 from credentials import BOT_TOKEN, CHANNEL_ID, APPEAL_CHANNEL_ID, TEST_BOT_TOKEN
-bot = Bot(token=TEST_BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 dp = Dispatcher(storage=MemoryStorage())
 
 
@@ -226,9 +226,9 @@ async def take_input(message: Message, state: FSMContext):
 
 async def main() -> None:
 
-    # scheduler = AsyncIOScheduler()
-    # scheduler.add_job(fns.send_message_to_users, 'interval', hours=2)
-    # scheduler.start()
+    scheduler = AsyncIOScheduler()
+    scheduler.add_job(fns.send_message_to_users, 'interval', hours=2)
+    scheduler.start()
     await dp.start_polling(bot)
 
 if __name__ == '__main__':

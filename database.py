@@ -1,6 +1,5 @@
 import asyncpg
 
-
 # ------------------- DATABASE CONFIGURATION ------------------- #
 DATABASE_CONFIG = {
     'host': "dpg-cqitjr8gph6c738u4sp0-a.frankfurt-postgres.render.com",
