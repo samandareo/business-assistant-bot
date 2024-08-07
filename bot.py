@@ -22,7 +22,7 @@ from credentials import admins
 
 
 from credentials import BOT_TOKEN, CHANNEL_ID, APPEAL_CHANNEL_ID, TEST_BOT_TOKEN
-bot = Bot(token=TEST_BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 dp = Dispatcher(storage=MemoryStorage())
 
 
