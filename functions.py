@@ -8,13 +8,15 @@ from aiogram.types import Message, CallbackQuery
 from database import execute_query, fetch_query
 from bot import bot
 
+from Userbot.userbot import initialize_clients, send_to_users, copy_to_users
+
 
 async def get_users(time, msg_id):
     try:
         if not isinstance(msg_id, tuple):
             msg_id = tuple(msg_id)
         query = """
-        SELECT bu.user_id, bu.name, bu.cur_msg_id 
+        SELECT bu.user_id, bu.username, bu.name, bu.cur_msg_id, bu.res_id 
         FROM bot_users as bu 
         LEFT JOIN end_users as eu ON bu.phone_number = eu.phone_number 
         WHERE eu.phone_number IS NULL 
@@ -31,7 +33,7 @@ async def get_users(time, msg_id):
 async def get_users_for_first(time):
     try:
         query = """
-        SELECT bu.user_id, bu.name, bu.cur_msg_id 
+        SELECT bu.user_id,bu.username, bu.name, bu.cur_msg_id, bu.res_id 
         FROM bot_users as bu 
         LEFT JOIN end_users as eu ON bu.phone_number = eu.phone_number
         WHERE eu.phone_number IS NULL 
@@ -58,7 +60,18 @@ async def send_first_message():
     for user in users:
         msg_id = user['cur_msg_id'] + 1
         try:
+
+            # This userbot ------ #
+            if user['username']:
+                try:
+                    await send_to_users(username=user['username'], message_text=data.replace('$name', user['name']), respon_id=user['res_id'],cur_msg_id=user['cur_msg_id'], name=user['name'])
+                except Exception as e:
+                    print(e)
+            # ------------------- #
+
             await bot.send_message(chat_id=user['user_id'], text=data.replace('$name', user['name']), disable_web_page_preview=True)
+            await asyncio.sleep(0.1)
+            await bot.send_message(chat_id=-1004218215589,text=f"{user['name']}ga {user['cur_msg_id']}-xabar yuborildi✅ ")
             await execute_query("UPDATE bot_users SET updated_at = $1, cur_msg_id = $2 WHERE user_id = $3;", (datetime.now(), msg_id, user['user_id']))
         except Exception as e:
             if 'Forbidden' in str(e):
@@ -83,7 +96,17 @@ async def send_24_messages():
         msg_id = user['cur_msg_id'] + 1
         if user['cur_msg_id'] != 4:
             try:
+                # This userbot ------ #
+                if user['username']:
+                    try:
+                        await send_to_users(username=user['username'], message_text=data.replace('$name', user['name']), respon_id=user['res_id'], cur_msg_id=user['cur_msg_id'],name=user['name'])
+                    except Exception as e:
+                        print(e)
+                # ------------------- #
+
                 await bot.send_message(chat_id=user['user_id'], text=data[f"msg{user['cur_msg_id']}"].replace('$name', user['name']), disable_web_page_preview=True)
+                await asyncio.sleep(0.1)
+                await bot.send_message(chat_id=-1004218215589,text=f"{user['name']}ga {user['cur_msg_id']}-xabar yuborildi✅ ")
                 await execute_query("UPDATE bot_users SET updated_at = $1, cur_msg_id = $2 WHERE user_id = $3;", (datetime.now(), msg_id, user['user_id']))
             except Exception as e:
                 if 'Forbidden' in str(e):
@@ -93,10 +116,26 @@ async def send_24_messages():
             print(f"Message sent to {user['name']} ({user['user_id']})")
         elif user['cur_msg_id'] == 4:
             try:
+
+                # This userbot ------ #
+                if user['username']:
+                    try:
+                        await send_to_users(username=user['username'], message_text=data[f"msg{user['cur_msg_id']}1"].replace('$name', user['name']), respon_id=user['res_id'],cur_msg_id=user['cur_msg_id'], name=user['name'])
+                        await copy_to_users(username=user['username'], channel_id=-1002151076535, respon_id=user['res_id'], message_id=18)
+                        await send_to_users(username=user['username'], message_text=data[f"msg{user['cur_msg_id']}2"].replace('$name', user['name']), respon_id=user['res_id'],cur_msg_id=user['cur_msg_id'], name=user['name'])
+                    except Exception as e:
+                        print(e)
+                # ------------------- #
+
                 await bot.send_message(chat_id=user['user_id'], text=data[f"msg{user['cur_msg_id']}1"].replace('$name', user['name']), disable_web_page_preview=True)
+                await asyncio.sleep(0.1)
                 await bot.copy_message(chat_id=user['user_id'], from_chat_id=-1002151076535, message_id=18)
+                await asyncio.sleep(0.1)
                 await bot.send_message(chat_id=user['user_id'], text=data[f"msg{user['cur_msg_id']}2"].replace('$name', user['name']), disable_web_page_preview=True)
+                await asyncio.sleep(0.1)
+                await bot.send_message(chat_id=-1004218215589,text=f"{user['name']}ga {user['cur_msg_id']}-xabar yuborildi✅ ")
                 await execute_query("UPDATE bot_users SET updated_at = $1, cur_msg_id = $2 WHERE user_id = $3;", (datetime.now(), msg_id, user['user_id']))
+
             except Exception as e:
                 if 'Forbidden' in str(e):
                     await execute_query("DELETE FROM bot_users WHERE user_id = $1;", (user['user_id'],))
@@ -119,7 +158,18 @@ async def send_48_messages():
     for user in users:
         msg_id = user['cur_msg_id'] + 1
         try:
+
+            # This userbot ------ #
+            if user['username']:
+                try:
+                    await send_to_users(username=user['username'], message_text=data.replace('$name', user['name']), respon_id=user['res_id'], cur_msg_id=user['cur_msg_id'], name=user['name'])
+                except Exception as e:
+                    print(e)
+            # ------------------- #
+
             await bot.send_message(chat_id=user['user_id'], text=data[f"msg{user['cur_msg_id']}"].replace('$name', user['name']), disable_web_page_preview=True)
+            await asyncio.sleep(0.1)
+            await bot.send_message(chat_id=-1004218215589,text=f"{user['name']}ga {user['cur_msg_id']}-xabar yuborildi✅ ")
             await execute_query("UPDATE bot_users SET updated_at = $1, cur_msg_id = $2 WHERE user_id = $3;", (datetime.now(), msg_id, user['user_id']))
         except Exception as e:
             if 'Forbidden' in str(e):
@@ -128,10 +178,14 @@ async def send_48_messages():
             continue
         await asyncio.sleep(0.7)
 
+
 async def send_message_to_users():
     try:
+        await initialize_clients()
         await send_first_message()
+        await asyncio.sleep(1)
         await send_24_messages()
+        await asyncio.sleep(1)
         await send_48_messages()
     except Exception as e:
         print(e)

@@ -19,6 +19,9 @@ from State.userState import UserState, AdminState, AdminStateOne, UserMessagesTo
 import Keyboards.keyboards as kb
 
 from credentials import admins
+from Userbot.userbot import initialize_clients, send_messages_to_users
+from Userbot.assign import assign_task_to_operator
+
 
 
 from credentials import BOT_TOKEN, CHANNEL_ID, APPEAL_CHANNEL_ID, TEST_BOT_TOKEN
@@ -81,10 +84,11 @@ async def take_id(message: Message, state: FSMContext) -> None:
 
 @dp.message(UserState.message_text)
 async def take_text(message: Message, state: FSMContext) -> None:
-    if message.text == '!stop':
+    if message.text == '!cancel':
         await state.clear()
         await message.reply("Jarayon bekor qilindi!")
         return
+    
     new_data = await state.get_data()
     message_text_id = new_data.get('message_text_id')
     message_text = message.text
@@ -145,7 +149,7 @@ async def take_message_one(message: Message, state: FSMContext) -> None:
 
 @dp.message(AdminStateOne.message_text)
 async def send_to_one(message: Message, state: FSMContext) -> None:
-    if message.text == '!stop':
+    if message.text == '!cancel':
         await message.reply("Jarayon bekor qilindi!")
         await state.clear()
         return
@@ -168,6 +172,12 @@ async def take_message(message: Message, state: FSMContext) -> None:
         await message.reply("Jarayon bekor qilindi")
         await state.clear()
         return
+    
+    if message.text == 'Murojaat':
+        await message.reply("Iltimos, murojaat xabarini yuboring.", reply_markup=ReplyKeyboardRemove())
+        await state.set_state(UserMessagesToAdmin.message_text)
+        return
+    
     await state.update_data(message_text=message.text)
     await message.answer("Murojaatingizni tasdiqlaysizmi?", reply_markup=kb.proove_message)
     await state.set_state(UserMessagesToAdmin.message_proove)
@@ -225,8 +235,8 @@ async def take_input(message: Message, state: FSMContext):
 
 
 async def main() -> None:
-
     scheduler = AsyncIOScheduler()
+    scheduler.add_job(assign_task_to_operator, 'interval', hours=1)
     scheduler.add_job(fns.send_message_to_users, 'interval', hours=2)
     scheduler.start()
     await dp.start_polling(bot)
