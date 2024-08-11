@@ -61,7 +61,7 @@ async def handle_start(message: Message) -> None:
         await db.execute_query(user_data_query,(str(message.from_user.id), message.from_user.username, message.from_user.first_name, phone_number))
         
     else:
-        await message.reply(f"Assalomu alekum, {message.from_user.first_name}. \nXush kelibsiz!\n\nSizni qiziqtirayotgan kitobchani olish uchun, iltimos biz sms orqali yuborgan maxsus link orqali botga tashrif buyuring😊\nShunda men siz kitobchani yuboraman.\n\nHurmat bilan The Wolf jamoasi!", reply_markup=kb.contact_with_admin)
+        await message.reply(f"Assalomu alekum, {message.from_user.first_name}. \nXush kelibsiz!\n\nSizni qiziqtirayotgan kitobchani olish uchun, iltimos biz sms orqali yuborgan maxsus link orqali botga tashrif buyuring😊\nShunda men siz hohlagan kitobchani yuboraman.\n\nHurmat bilan The Wolf jamoasi!", reply_markup=kb.contact_with_admin)
 
         user_data_query = f"INSERT INTO bot_users (user_id, username, name, phone_number, created_at) VALUES ($1, $2, $3, $4, NOW()) ON CONFLICT (user_id) DO NOTHING;"
         await db.execute_query(user_data_query,(str(message.from_user.id), message.from_user.username, message.from_user.first_name, None))
