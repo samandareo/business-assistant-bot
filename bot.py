@@ -19,7 +19,6 @@ from State.userState import UserState, AdminState, AdminStateOne, UserMessagesTo
 import Keyboards.keyboards as kb
 
 from credentials import admins
-from Userbot.userbot import initialize_clients, send_messages_to_users
 from Userbot.assign import assign_task_to_operator
 
 
