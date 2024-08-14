@@ -20,6 +20,7 @@ import Keyboards.keyboards as kb
 
 from credentials import admins
 from Userbot.userbot import initialize_clients
+from Userbot.assign import assign_task_to_operator
 
 
 
@@ -228,8 +229,8 @@ async def main() -> None:
     await init_db()
     await initialize_clients()
     scheduler = AsyncIOScheduler()
-    # scheduler.add_job(assign_task_to_operator, 'interval',minutes=1)
-    scheduler.add_job(fns.send_message_to_users, 'interval', minutes=2)
+    scheduler.add_job(assign_task_to_operator, 'interval',hours=1)
+    scheduler.add_job(fns.send_message_to_users, 'interval', hours=2)
     scheduler.start()
     await dp.start_polling(bot)
 
