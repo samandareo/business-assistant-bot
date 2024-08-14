@@ -13,28 +13,19 @@ from aiogram.fsm.context import FSMContext
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from aiogram.types import Message, CallbackQuery, ReplyKeyboardRemove
 
-import database as db
+from database import execute_query, fetch_query, init_db
 import functions as fns
 from State.userState import UserState, AdminState, AdminStateOne, UserMessagesToAdmin
 import Keyboards.keyboards as kb
 
 from credentials import admins
-from Userbot.assign import assign_task_to_operator
+from Userbot.userbot import initialize_clients
 
 
 
 from credentials import BOT_TOKEN, CHANNEL_ID, APPEAL_CHANNEL_ID, TEST_BOT_TOKEN
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 dp = Dispatcher(storage=MemoryStorage())
-
-
-DATABASE_CONFIG = {
-    'host': "dpg-cqitjr8gph6c738u4sp0-a.frankfurt-postgres.render.com",
-    'database': "tarbotdb",
-    'user': "sreo",
-    'password': "4INdhZzCVyZ7GagHBnJoPp38sAqg3iOS",
-    'port': "5432"
-}
 
 
 @dp.message(CommandStart())
@@ -44,7 +35,7 @@ async def handle_start(message: Message) -> None:
     special_data = message.text.split('/start ')[1] if '/start ' in message.text else None
     if special_data:
         phone_number, book_id = special_data.split('_')
-        msg_url = await db.fetch_query(f"SELECT b.book_location_link FROM books b WHERE b.book_id = {book_id};")
+        msg_url = await fetch_query(f"SELECT b.book_location_link FROM books b WHERE b.book_id = {book_id};")
         pattern = r"https://t\.me/c/2151076535/(\d+)"
         match = re.match(pattern, msg_url[0]['book_location_link'])
 
@@ -57,13 +48,13 @@ async def handle_start(message: Message) -> None:
         await bot.copy_message(chat_id=message.chat.id, from_chat_id=CHANNEL_ID, message_id=msg_id)
                 # Store user information in bot_users table
         user_data_query = f"INSERT INTO bot_users (user_id, username, name, phone_number, created_at) VALUES ($1, $2, $3, $4, NOW()) ON CONFLICT (user_id) DO NOTHING;"
-        await db.execute_query(user_data_query,(str(message.from_user.id), message.from_user.username, message.from_user.first_name, phone_number))
+        await execute_query(user_data_query,(str(message.from_user.id), message.from_user.username, message.from_user.first_name, phone_number))
         
     else:
         await message.reply(f"Assalomu alekum, {message.from_user.first_name}. \nXush kelibsiz!\n\nSizni qiziqtirayotgan kitobchani olish uchun, iltimos biz sms orqali yuborgan maxsus link orqali botga tashrif buyuring😊\nShunda men siz hohlagan kitobchani yuboraman.\n\nHurmat bilan The Wolf jamoasi!", reply_markup=kb.contact_with_admin)
 
         user_data_query = f"INSERT INTO bot_users (user_id, username, name, phone_number, created_at) VALUES ($1, $2, $3, $4, NOW()) ON CONFLICT (user_id) DO NOTHING;"
-        await db.execute_query(user_data_query,(str(message.from_user.id), message.from_user.username, message.from_user.first_name, None))
+        await execute_query(user_data_query,(str(message.from_user.id), message.from_user.username, message.from_user.first_name, None))
 
 
 @dp.message(UserState.message_text_id)
@@ -111,13 +102,13 @@ async def send_to_all(message: Message, state: FSMContext) -> None:
         await state.clear()
         return
     
-    users = await db.fetch_query("SELECT user_id, name FROM bot_users;")
+    users = await fetch_query("SELECT user_id, name FROM bot_users;")
     for user in users:
         try:
             await bot.send_message(chat_id=user['user_id'], text=message_text.replace("$name",user['name']), disable_web_page_preview=True)
         except Exception as e:
             if 'Forbidden' in str(e):
-                await db.execute_query(f"DELETE FROM bot_users WHERE bot_users.user_id = '{user['user_id']}';")
+                await execute_query(f"DELETE FROM bot_users WHERE bot_users.user_id = '{user['user_id']}';")
             print(e)
             continue
         print(f"Message sent to {user['name']} ({user['user_id']})")
@@ -134,7 +125,7 @@ async def take_message_one(message: Message, state: FSMContext) -> None:
         return
     else:
         wait_message = await message.answer("Foydalanuvchi qidirilmoqda...")
-        check = await db.fetch_query("SELECT * FROM bot_users WHERE user_id = $1;", (msg_text,))
+        check = await fetch_query("SELECT * FROM bot_users WHERE user_id = $1;", (msg_text,))
 
     if not check:
         await wait_message.edit_text("Foydalanuvchi topilmadi😕")
@@ -156,12 +147,12 @@ async def send_to_one(message: Message, state: FSMContext) -> None:
     new_data = await state.get_data()
     user_id = new_data.get('user_id')
     message_text = new_data.get('message_text')
-    user = await db.fetch_query(f"SELECT name FROM bot_users WHERE user_id = '{user_id}';")
+    user = await fetch_query(f"SELECT name FROM bot_users WHERE user_id = '{user_id}';")
     try:
         await bot.send_message(chat_id=user_id, text=message_text.replace("$name", user[0]['name']), disable_web_page_preview=True)
     except Exception as e:
         if 'Forbidden' in str(e):
-            await db.execute_query(f"DELETE FROM bot_users WHERE bot_users.user_id = '{user_id}';")
+            await execute_query(f"DELETE FROM bot_users WHERE bot_users.user_id = '{user_id}';")
         print(e)
     await state.clear()
 
@@ -234,9 +225,11 @@ async def take_input(message: Message, state: FSMContext):
 
 
 async def main() -> None:
+    await init_db()
+    await initialize_clients()
     scheduler = AsyncIOScheduler()
-    scheduler.add_job(assign_task_to_operator, 'interval', hours=1)
-    scheduler.add_job(fns.send_message_to_users, 'interval', hours=2)
+    # scheduler.add_job(assign_task_to_operator, 'interval',minutes=1)
+    scheduler.add_job(fns.send_message_to_users, 'interval', minutes=2)
     scheduler.start()
     await dp.start_polling(bot)
 
