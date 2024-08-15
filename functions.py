@@ -66,13 +66,13 @@ async def send_first_message():
         txt = txt.replace('$name', user['name'])
         try:
 
-            # This userbot ------ #
-            if user['username']:
-                try:
-                    await send_to_users(username=user['username'], message_text=txt, respon_id=user['res_id'])
-                except Exception as e:
-                    print(e)
-            # ------------------- #
+            # # This userbot ------ #
+            # if user['username']:
+            #     try:
+            #         await send_to_users(username=user['username'], message_text=txt, respon_id=user['res_id'])
+            #     except Exception as e:
+            #         print(e)
+            # # ------------------- #
 
             await bot.send_message(chat_id=user['user_id'], text=data.replace('$name', user['name']), disable_web_page_preview=True)
             await asyncio.sleep(1)
@@ -111,14 +111,14 @@ async def send_24_messages():
         msg_id = user['cur_msg_id'] + 1
         if user['cur_msg_id'] != 4:
             try:
-                # This userbot ------ #
-                if user['username']:
-                    txt = str(data[f"msg{user['cur_msg_id']}"])
-                    try:
-                        await send_to_users(username=user['username'], message_text=txt.replace('$name', user['name']), respon_id=user['res_id'])
-                    except Exception as e:
-                        print(e)
-                # ------------------- #
+                # # This userbot ------ #
+                # if user['username']:
+                #     txt = str(data[f"msg{user['cur_msg_id']}"])
+                #     try:
+                #         await send_to_users(username=user['username'], message_text=txt.replace('$name', user['name']), respon_id=user['res_id'])
+                #     except Exception as e:
+                #         print(e)
+                # # ------------------- #
 
                 await bot.send_message(chat_id=user['user_id'], text=data[f"msg{user['cur_msg_id']}"].replace('$name', user['name']), disable_web_page_preview=True)
                 # await execute_query("UPDATE bot_users SET updated_at = $1, cur_msg_id = $2 WHERE user_id = $3;", (datetime.now(), msg_id, user['user_id']))
@@ -136,15 +136,15 @@ async def send_24_messages():
             txt2 = str(data[f"msg{user['cur_msg_id']}2"])
             try:
 
-                # This userbot ------ #
-                if user['username']:
-                    try:
-                        await send_to_users(username=user['username'], message_text=txt1.replace('$name', user['name']), respon_id=user['res_id'])
-                        await copy_to_users(username=user['username'], channel_id=-1002151076535, respon_id=user['res_id'], message_id=18)
-                        await send_to_users(username=user['username'], message_text=txt2.replace('$name', user['name']), respon_id=user['res_id'])
-                    except Exception as e:
-                        print(e)
-                # ------------------- #
+                # # This userbot ------ #
+                # if user['username']:
+                #     try:
+                #         await send_to_users(username=user['username'], message_text=txt1.replace('$name', user['name']), respon_id=user['res_id'])
+                #         await copy_to_users(username=user['username'], channel_id=-1002151076535, respon_id=user['res_id'], message_id=18)
+                #         await send_to_users(username=user['username'], message_text=txt2.replace('$name', user['name']), respon_id=user['res_id'])
+                #     except Exception as e:
+                #         print(e)
+                # # ------------------- #
 
                 await bot.send_message(chat_id=user['user_id'], text=data[f"msg{user['cur_msg_id']}1"].replace('$name', user['name']), disable_web_page_preview=True)
                 await asyncio.sleep(0.1)
@@ -192,14 +192,14 @@ async def send_48_messages():
         msg_id = user['cur_msg_id'] + 1
         try:
 
-            # This userbot ------ #
-            if user['username']:
-                txt = str(data[f"msg{user['cur_msg_id']}"])
-                try:
-                    await send_to_users(username=user['username'], message_text=txt.replace('$name', user['name']), respon_id=user['res_id'])
-                except Exception as e:
-                    print(e)
-            # ------------------- #
+            # # This userbot ------ #
+            # if user['username']:
+            #     txt = str(data[f"msg{user['cur_msg_id']}"])
+            #     try:
+            #         await send_to_users(username=user['username'], message_text=txt.replace('$name', user['name']), respon_id=user['res_id'])
+            #     except Exception as e:
+            #         print(e)
+            # # ------------------- #
 
             await bot.send_message(chat_id=user['user_id'], text=data[f"msg{user['cur_msg_id']}"].replace('$name', user['name']), disable_web_page_preview=True)
             await asyncio.sleep(0.1)
@@ -218,6 +218,8 @@ async def send_48_messages():
         3: 0,
         7: 0
     }
+
+
 
 
 async def send_message_to_users():

@@ -24,7 +24,7 @@ from Userbot.assign import assign_task_to_operator
 
 
 
-from credentials import BOT_TOKEN, CHANNEL_ID, APPEAL_CHANNEL_ID, TEST_BOT_TOKEN
+from credentials import BOT_TOKEN, CHANNEL_ID, APPEAL_CHANNEL_ID, TEST_BOT_TOKEN, REPORT_ID
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 dp = Dispatcher(storage=MemoryStorage())
 
@@ -34,7 +34,21 @@ async def handle_start(message: Message) -> None:
     # Extract the special link data (phone number and book ID)
     print(message.text)
     special_data = message.text.split('/start ')[1] if '/start ' in message.text else None
-    if special_data:
+    print(special_data)
+    if special_data and special_data == 'all':
+        await message.reply(f"Assalomu alekum, {message.from_user.first_name}. \nXush kelibsiz!\n\nQuyida barcha kitoblarni ko'rishingiz mumkin!", reply_markup=kb.contact_with_admin)
+        msg_url = await fetch_query(f"SELECT b.book_location_link FROM books b;")
+        for msg in msg_url:
+            pattern = r"https://t\.me/c/2151076535/(\d+)"
+            match = re.match(pattern, msg['book_location_link'])
+            if match:
+                msg_id = int(match.group(1))
+            
+            if msg_id ==31:
+                continue
+            await bot.copy_message(chat_id=message.chat.id, from_chat_id=CHANNEL_ID, message_id=msg_id)
+        user_data_query = f"INSERT INTO bot_users (user_id, username, name, phone_number, created_at) VALUES ($1, $2, $3, $4, NOW()) ON CONFLICT (user_id) DO NOTHING;"
+    elif special_data:
         phone_number, book_id = special_data.split('_')
         msg_url = await fetch_query(f"SELECT b.book_location_link FROM books b WHERE b.book_id = {book_id};")
         pattern = r"https://t\.me/c/2151076535/(\d+)"
@@ -50,7 +64,7 @@ async def handle_start(message: Message) -> None:
                 # Store user information in bot_users table
         user_data_query = f"INSERT INTO bot_users (user_id, username, name, phone_number, created_at) VALUES ($1, $2, $3, $4, NOW()) ON CONFLICT (user_id) DO NOTHING;"
         await execute_query(user_data_query,(str(message.from_user.id), message.from_user.username, message.from_user.first_name, phone_number))
-        
+
     else:
         await message.reply(f"Assalomu alekum, {message.from_user.first_name}. \nXush kelibsiz!\n\nSizni qiziqtirayotgan kitobchani olish uchun, iltimos biz sms orqali yuborgan maxsus link orqali botga tashrif buyuring😊\nShunda men siz hohlagan kitobchani yuboraman.\n\nHurmat bilan The Wolf jamoasi!", reply_markup=kb.contact_with_admin)
 
@@ -222,12 +236,21 @@ async def take_input(message: Message, state: FSMContext):
         await message.reply("Iltimos, murojaat xabarini yuboring.", reply_markup=ReplyKeyboardRemove())
         await state.set_state(UserMessagesToAdmin.message_text)
         return
+    elif message.text == '/stat':
+        if message.from_user.id not in admins:
+            await message.answer("Siz admin emassiz!")
+            return
+        users = await fetch_query("SELECT COUNT(*) FROM bot_users;")
+        await message.answer(f"Botda {users[0]['count']} ta foydalanuvchi mavjud.")
+        return
+    elif message.text == '/test':
+        await bot.send_message(chat_id=REPORT_ID, text="Test xabar")
 
 
 
 async def main() -> None:
     await init_db()
-    await initialize_clients()
+    # await initialize_clients()
     scheduler = AsyncIOScheduler()
     scheduler.add_job(assign_task_to_operator, 'interval',hours=1)
     scheduler.add_job(fns.send_message_to_users, 'interval', hours=2)
