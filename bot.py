@@ -50,6 +50,7 @@ async def handle_start(message: Message) -> None:
         user_data_query = f"INSERT INTO bot_users (user_id, username, name, phone_number, created_at) VALUES ($1, $2, $3, $4, NOW()) ON CONFLICT (user_id) DO NOTHING;"
     elif special_data:
         phone_number, book_id = special_data.split('_')
+        print(phone_number, book_id)
         msg_url = await fetch_query(f"SELECT b.book_location_link FROM books b WHERE b.book_id = {book_id};")
         pattern = r"https://t\.me/c/2151076535/(\d+)"
         match = re.match(pattern, msg_url[0]['book_location_link'])
