@@ -85,7 +85,11 @@ async def take_id(message: Message, state: FSMContext) -> None:
         await state.set_state(UserState.message_text_id)
         return
     await state.update_data(message_text_id=message.text)
-    await message.reply("Please enter the new message text.")
+    with open('extras/messages.json', 'r') as file:
+        data = json.load(file)
+    
+    message_text = data[f"msg{message.text}"]
+    await message.reply(f"Current message text: {message_text}\n\nPlease enter the new message text.")
     await state.set_state(UserState.message_text)
 
 @dp.message(UserState.message_text)
