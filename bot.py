@@ -48,6 +48,8 @@ async def handle_start(message: Message) -> None:
                 continue
             await bot.copy_message(chat_id=message.chat.id, from_chat_id=CHANNEL_ID, message_id=msg_id)
         user_data_query = f"INSERT INTO bot_users (user_id, username, name, phone_number, created_at) VALUES ($1, $2, $3, $4, NOW()) ON CONFLICT (user_id) DO NOTHING;"
+        await execute_query(user_data_query,(str(message.from_user.id), message.from_user.username, message.from_user.first_name, None))
+
     elif special_data:
         phone_number, book_id = special_data.split('_')
         print(phone_number, book_id)
