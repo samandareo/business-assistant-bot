@@ -4,10 +4,10 @@ import logging
 
 # ------------------- DATABASE CONFIGURATION ------------------- #
 DATABASE_CONFIG = {
-    'host': "dpg-cqitjr8gph6c738u4sp0-a.frankfurt-postgres.render.com",
-    'database': "tarbotdb",
-    'user': "sreo",
-    'password': "4INdhZzCVyZ7GagHBnJoPp38sAqg3iOS",
+    'host': "135.181.44.193",
+    'database': "target_bot",
+    'user': "targetuser",
+    'password': "targetuser0099",
     'port': "5432"
 }
 

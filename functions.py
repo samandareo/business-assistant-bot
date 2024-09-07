@@ -9,6 +9,8 @@ from bot import bot
 from Userbot.userbot import initialize_clients, send_to_users, copy_to_users
 from credentials import REPORT_ID
 
+import pandas as pd
+
 
 async def get_users(time, msg_id):
     try:
@@ -234,3 +236,43 @@ async def send_message_to_users():
 
 # To run the functions
 # asyncio.run(send_message_to_users())
+
+async def get_users_data_as_excel():
+    try:
+        query = """
+        SELECT user_id, username, name, phone_number, DATE(created_at) 
+        FROM bot_users
+        """
+        data = await fetch_query(query=query)
+        if not data:
+            return None
+        df = pd.DataFrame(data)
+
+        df.columns = ['user_id', 'username', 'name', 'phone_number', 'created_at']
+        print(df)
+        new_data = {
+            'user_id': [],
+            'username': [],
+            'name': [],
+            'phone_number': [],
+            'created_at': []
+        }
+
+        for i in range(len(df)):
+            new_data['user_id'].append(df['user_id'][i])
+            new_data['username'].append(df['username'][i])
+            new_data['name'].append(df['name'][i])
+            if str(df['phone_number'][i]) == 'None':
+                new_data['phone_number'].append("Phone number is not valid")
+            else:
+                new_data['phone_number'].append(f"+{str(df['phone_number'][i])[:12]}")
+            new_data['created_at'].append(str(df['created_at'][i]))
+        
+        new_data = pd.DataFrame(new_data)
+        now = datetime.now().strftime("%Y_%m_%d")
+        new_data.to_excel(f'extras/bot_users_data_{now}.xlsx', index=False)
+        return f"extras/bot_users_data_{now}.xlsx"
+
+    except Exception as e:
+        print(e)
+        return None

@@ -11,7 +11,7 @@ from aiogram.filters.command import CommandStart
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.fsm.context import FSMContext
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from aiogram.types import Message, CallbackQuery, ReplyKeyboardRemove
+from aiogram.types import Message, CallbackQuery, ReplyKeyboardRemove, FSInputFile
 
 from database import execute_query, fetch_query, init_db
 import functions as fns
@@ -248,6 +248,14 @@ async def take_input(message: Message, state: FSMContext):
         users = await fetch_query("SELECT COUNT(*) FROM bot_users;")
         await message.answer(f"Botda {users[0]['count']} ta foydalanuvchi mavjud.")
         return
+    elif message.text == '/users':
+        if message.from_user.id not in admins:
+            await message.answer("Siz admin emassiz!")
+            return
+        path = await fns.get_users_data_as_excel()
+        if path:
+            file = FSInputFile(path,filename=path[7:])
+            await bot.send_document(chat_id=message.chat.id, document=file,caption="Foydalanuvchilar ro'yxati")
     elif message.text == '/test':
         await bot.send_message(chat_id=REPORT_ID, text="Test xabar")
 
@@ -256,10 +264,10 @@ async def take_input(message: Message, state: FSMContext):
 async def main() -> None:
     await init_db()
     # await initialize_clients()
-    scheduler = AsyncIOScheduler()
-    scheduler.add_job(assign_task_to_operator, 'interval',hours=1)
-    scheduler.add_job(fns.send_message_to_users, 'interval', hours=2)
-    scheduler.start()
+    # scheduler = AsyncIOScheduler()
+    # scheduler.add_job(assign_task_to_operator, 'interval',hours=1)
+    # scheduler.add_job(fns.send_message_to_users, 'interval', hours=2)
+    # scheduler.start()
     await dp.start_polling(bot)
 
 if __name__ == '__main__':
