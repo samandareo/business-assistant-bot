@@ -127,7 +127,12 @@ async def send_to_all(message: Message, state: FSMContext) -> None:
     users = await fetch_query("SELECT user_id, name FROM bot_users;")
     for user in users:
         try:
-            await bot.send_message(chat_id=user['user_id'], text=message_text.replace("$name",user['name']), disable_web_page_preview=True)
+            if message.text:
+                await bot.send_message(user['user_id'],message.text.replace("$name", user['name']), disable_web_page_preview=True)
+            elif message.caption:
+                await bot.copy_message(user['user_id'],message.chat.id,message.message_id, caption=message.caption.replace("$name", user['name']))
+            elif not message.text and not message.caption:
+                await bot.copy_message(user['user_id'],message.chat.id,message.message_id)
         except Exception as e:
             if 'Forbidden' in str(e):
                 await execute_query(f"DELETE FROM bot_users WHERE bot_users.user_id = '{user['user_id']}';")
