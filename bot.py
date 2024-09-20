@@ -176,7 +176,12 @@ async def send_to_one(message: Message, state: FSMContext) -> None:
     message_text = new_data.get('message_text')
     user = await fetch_query(f"SELECT name FROM bot_users WHERE user_id = '{user_id}';")
     try:
-        await bot.send_message(chat_id=user_id, text=message_text.replace("$name", user[0]['name']), disable_web_page_preview=True)
+        if message.text:
+            await bot.send_message(chat_id=user['user_id'],text=message_text.replace("$name", user[0]['name']), disable_web_page_preview=True)
+        elif message.caption:
+            await bot.copy_message(user['user_id'],message.chat.id,message.message_id, caption=message.caption.replace("$name", user[0]['name']))
+        elif not message.text and not message.caption:
+            await bot.copy_message(user['user_id'],message.chat.id,message.message_id)
     except Exception as e:
         if 'Forbidden' in str(e):
             await execute_query(f"DELETE FROM bot_users WHERE bot_users.user_id = '{user_id}';")
