@@ -14,3 +14,7 @@ class AdminStateOne(StatesGroup):
 class UserMessagesToAdmin(StatesGroup):
     message_text = State()
     message_proove = State()
+
+class CreatePoll(StatesGroup):
+    message_text = State()
+    message_proove = State()

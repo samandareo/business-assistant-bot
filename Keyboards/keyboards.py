@@ -18,3 +18,12 @@ proove_message = InlineKeyboardMarkup(
     ],
     resize_keyboard=True
 )
+
+proove_poll = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [
+            InlineKeyboardButton(text="Ha", callback_data="proove"),
+            InlineKeyboardButton(text="Yo'q", callback_data="cancel")
+        ]
+    ]
+)

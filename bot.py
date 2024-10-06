@@ -15,7 +15,7 @@ from aiogram.types import Message, CallbackQuery, ReplyKeyboardRemove, FSInputFi
 
 from database import execute_query, fetch_query, init_db
 import functions as fns
-from State.userState import UserState, AdminState, AdminStateOne, UserMessagesToAdmin
+from State.userState import UserState, AdminState, AdminStateOne, UserMessagesToAdmin, CreatePoll
 import Keyboards.keyboards as kb
 
 from credentials import admins
@@ -133,12 +133,7 @@ async def send_to_all(message: Message, state: FSMContext) -> None:
             elif message.caption:
                 await bot.copy_message(user['user_id'],message.chat.id,message.message_id, caption=message.caption.replace("$name", user['name']))
             elif not message.text and not message.caption:
-                if message.poll:
-                    message.poll.question = message.poll.question.replace("$name", user['name'])
-                    await bot.forward_message(user['user_id'],message.chat.id,message.message_id)
-                else:
-                    message.text = message.text.replace("$name", user['name'])
-                    await bot.copy_message(user['user_id'],message.chat.id,message.message_id)
+                await bot.copy_message(user['user_id'],message.chat.id,message.message_id)
             await message.answer("Xabar jo'natildi!")
         except Exception as e:
             if 'Forbidden' in str(e):
@@ -188,12 +183,7 @@ async def send_to_one(message: Message, state: FSMContext) -> None:
         elif message.caption:
             await bot.copy_message(user_id,message.chat.id,message.message_id, caption=message.caption.replace("$name", user[0]['name']))
         elif not message.text and not message.caption:
-            if message.poll:
-                message.poll.question = message.poll.question.replace("$name", user[0]['name'])
-                await bot.forward_message(user_id,message.chat.id,message.message_id)
-            else:
-                message.text = message.text.replace("$name", user[0]['name'])
-                await bot.copy_message(user_id,message.chat.id,message.message_id)
+            await bot.copy_message(user_id,message.chat.id,message.message_id)
         await message.answer("Xabar jo'natildi!")
     except Exception as e:
         if 'Forbidden' in str(e):
@@ -236,7 +226,35 @@ async def send_appeal(callback_data: CallbackQuery, state: FSMContext) -> None:
         await callback_data.message.delete()
     await state.clear()
 
+# Creating pool
+@dp.message(CreatePoll.message_text)
+async def take_message(message: Message, state: FSMContext) -> None:
+    if message.text == '!cancel':
+        await message.reply("Jarayon bekor qilindi")
+        await state.clear()
+        return
+    
+    await state.update_data(message_text=message.text)
+    await message.answer("So'rovnomani tasdiqlaysizmi?", reply_markup=kb.proove_poll)
+    await state.set_state(CreatePoll.message_proove)
 
+@dp.callback_query(CreatePoll.message_proove)
+async def send_appeal(callback_data: CallbackQuery, state: FSMContext) -> None:
+    if callback_data.data == "proove":
+        data = await state.get_data()
+        text = data.get('message_text')
+
+        try:
+            await bot.send_poll(chat_id=7102300410,question=text.replace("$name","Umidjon Rustamov"),is_anonymous=False, options=["Test 1", "Test 2"] )
+            await bot.send_poll(chat_id=895775406,question=text.replace("$name","Samandar"),is_anonymous=False, options=["Test 1", "Test 2"] )
+            await callback_data.message.answer("So'rovnoma yuborildi!",show_alert=True)
+            await callback_data.message.delete()
+        except Exception as e:
+            print(e)
+    elif callback_data.data == "cancel":
+        await callback_data.message.answer("So'rovnoma bekor qilindi!")
+        await callback_data.message.delete()
+    await state.clear()
 
 
 @dp.message()
@@ -283,6 +301,12 @@ async def take_input(message: Message, state: FSMContext):
             await bot.send_document(chat_id=message.chat.id, document=file,caption="Foydalanuvchilar ro'yxati")
     elif message.text == '/test':
         await bot.send_message(chat_id=REPORT_ID, text="Test xabar")
+    elif message.text == '/create_poll':
+        if message.from_user.id not in admins:
+            await message.answer("Siz admin emassiz!")
+            return
+        await message.answer("Iltimos so'rovnoma savolini kiriting")
+        await state.set_state(CreatePoll.message_text)
 
 
 
@@ -296,5 +320,5 @@ async def main() -> None:
     await dp.start_polling(bot)
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO, stream=sys.stdout)
+    # logging.basicConfig(level=logging.INFO, stream=sys.stdout)
     asyncio.run(main())
