@@ -132,7 +132,10 @@ async def send_to_all(message: Message, state: FSMContext) -> None:
             elif message.caption:
                 await bot.copy_message(user['user_id'],message.chat.id,message.message_id, caption=message.caption.replace("$name", user['name']))
             elif not message.text and not message.caption:
-                await bot.copy_message(user['user_id'],message.chat.id,message.message_id)
+                if message.poll:
+                    await bot.forward_message(user['user_id'],message.chat.id,message.message_id)
+                else:
+                    await bot.copy_message(user['user_id'],message.chat.id,message.message_id)
         except Exception as e:
             if 'Forbidden' in str(e):
                 await execute_query(f"DELETE FROM bot_users WHERE bot_users.user_id = '{user['user_id']}';")
@@ -181,7 +184,10 @@ async def send_to_one(message: Message, state: FSMContext) -> None:
         elif message.caption:
             await bot.copy_message(user_id,message.chat.id,message.message_id, caption=message.caption.replace("$name", user[0]['name']))
         elif not message.text and not message.caption:
-            await bot.copy_message(user_id,message.chat.id,message.message_id)
+            if message.poll:
+                await bot.forward_message(user_id,message.chat.id,message.message_id)
+            else:
+                await bot.copy_message(user_id,message.chat.id,message.message_id)
     except Exception as e:
         if 'Forbidden' in str(e):
             await execute_query(f"DELETE FROM bot_users WHERE bot_users.user_id = '{user_id}';")

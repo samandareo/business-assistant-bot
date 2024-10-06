@@ -64,11 +64,14 @@ async def handle_message(message: types.Message) -> None:
     #     await message.answer(message.text)
     for user in users:
         try:
+            print(message.poll)
             if message.text:
                 await bot.send_message(user['id'],message.text.replace("$name", user['name']), disable_web_page_preview=True)
             elif message.caption:
                 await bot.copy_message(user['id'],message.chat.id,message.message_id, caption=message.caption.replace("$name", user['name']))
             elif not message.text and not message.caption:
+                if message.poll:
+                    await bot.forward_message(user['id'],message.chat.id,message.message_id)
                 await bot.copy_message(user['id'],message.chat.id,message.message_id)
         except Exception as e:
             print(e)
