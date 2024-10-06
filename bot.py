@@ -125,6 +125,7 @@ async def send_to_all(message: Message, state: FSMContext) -> None:
         return
     
     users = await fetch_query("SELECT user_id, name FROM bot_users;")
+    print(users)
     for user in users:
         try:
             if message.text:
@@ -133,8 +134,10 @@ async def send_to_all(message: Message, state: FSMContext) -> None:
                 await bot.copy_message(user['user_id'],message.chat.id,message.message_id, caption=message.caption.replace("$name", user['name']))
             elif not message.text and not message.caption:
                 if message.poll:
+                    message.poll.question = message.poll.question.replace("$name", user['name'])
                     await bot.forward_message(user['user_id'],message.chat.id,message.message_id)
                 else:
+                    message.text = message.text.replace("$name", user['name'])
                     await bot.copy_message(user['user_id'],message.chat.id,message.message_id)
             await message.answer("Xabar jo'natildi!")
         except Exception as e:
@@ -186,8 +189,10 @@ async def send_to_one(message: Message, state: FSMContext) -> None:
             await bot.copy_message(user_id,message.chat.id,message.message_id, caption=message.caption.replace("$name", user[0]['name']))
         elif not message.text and not message.caption:
             if message.poll:
+                message.poll.question = message.poll.question.replace("$name", user[0]['name'])
                 await bot.forward_message(user_id,message.chat.id,message.message_id)
             else:
+                message.text = message.text.replace("$name", user[0]['name'])
                 await bot.copy_message(user_id,message.chat.id,message.message_id)
         await message.answer("Xabar jo'natildi!")
     except Exception as e:
