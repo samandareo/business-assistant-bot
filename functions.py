@@ -364,8 +364,13 @@ async def create_poll(received_question, received_options):
         try:
             options = received_options
             question = received_question.replace("$name", user['name'])
-
-            poll_message = await bot.send_poll(chat_id=user['id'],question=question, options=options)
+            try:
+                poll_message = await bot.send_poll(chat_id=user['id'],question=question, options=options)
+            except Exception as e:
+                if 'Forbidden' in str(e):
+                    await execute_query(f"DELETE FROM bot_users WHERE bot_users.user_id = '{user['id']}';")
+                print(e)
+                continue
 
             ##############################
             poll_id = poll_message.poll.id
