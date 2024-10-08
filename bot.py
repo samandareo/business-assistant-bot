@@ -11,11 +11,11 @@ from aiogram.filters.command import CommandStart
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.fsm.context import FSMContext
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from aiogram.types import Message, CallbackQuery, ReplyKeyboardRemove, FSInputFile
+from aiogram.types import Message, CallbackQuery, ReplyKeyboardRemove, FSInputFile, Poll
 
 from database import execute_query, fetch_query, init_db
 import functions as fns
-from State.userState import UserState, AdminState, AdminStateOne, UserMessagesToAdmin, CreatePoll
+from State.userState import UserState, AdminState, AdminStateOne, UserMessagesToAdmin, CreatePoll, PollResults
 import Keyboards.keyboards as kb
 
 from credentials import admins
@@ -28,6 +28,21 @@ from credentials import BOT_TOKEN, CHANNEL_ID, APPEAL_CHANNEL_ID, TEST_BOT_TOKEN
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 dp = Dispatcher(storage=MemoryStorage())
 
+@dp.poll()
+async def handler_poll(poll: Poll):
+    poll_id = poll.id
+    question = poll.question
+    options = poll.options
+
+    data = {
+        'question' : question
+    }
+    print(f"Poll ID: {poll_id}, Question: {question}")
+    for option in options:
+        data[option.text] = option.voter_count
+        print(f"Option: {option.text}, Voter Count: {option.voter_count}")
+    
+    await fns.change_data(poll_id,data)
 
 @dp.message(CommandStart())
 async def handle_start(message: Message) -> None:
@@ -226,35 +241,112 @@ async def send_appeal(callback_data: CallbackQuery, state: FSMContext) -> None:
         await callback_data.message.delete()
     await state.clear()
 
-# Creating pool
-@dp.message(CreatePoll.message_text)
-async def take_message(message: Message, state: FSMContext) -> None:
+@dp.message(CreatePoll.question)
+async def take_question(message: Message, state: FSMContext) -> None:
     if message.text == '!cancel':
         await message.reply("Jarayon bekor qilindi")
         await state.clear()
         return
     
-    await state.update_data(message_text=message.text)
-    await message.answer("So'rovnomani tasdiqlaysizmi?", reply_markup=kb.proove_poll)
-    await state.set_state(CreatePoll.message_proove)
+    await state.update_data(question=message.text)
+    await message.reply("Qabul qilindi! So'rovnomada nechta javob/variant bo'lishi kerak?")
+    await state.set_state(CreatePoll.count)
 
-@dp.callback_query(CreatePoll.message_proove)
+@dp.message(CreatePoll.count)
+async def take_count(message: Message, state: FSMContext) -> None:
+    if message.text == '!cancel':
+        await message.reply("Jarayon bekor qilindi")
+        await state.clear()
+        return
+    
+    await state.update_data(count=int(message.text), options=[])
+    await message.reply("Axa! Iltimos, 1 - variantni kiriting:")
+    await state.set_state(CreatePoll.option)
+
+
+@dp.message(CreatePoll.option)
+async def take_options(message: Message, state: FSMContext) -> None:
+    if message.text == '!cancel':
+        await message.reply("Jarayon bekor qilindi")
+        await state.clear()
+        return
+    
+    user_data = await state.get_data()
+    options = user_data.get('options', [])
+    count = user_data.get('count')
+
+    options.append(message.text)
+    await state.update_data(options=options)
+
+    if len(options) < count:
+        await message.reply(f"Qabul qilindi! {len(options)+1}-variantni kiriting:")
+        await state.set_state(CreatePoll.option)
+        return
+    else:
+        question = user_data.get('question')
+        options = user_data.get('options')
+        text = ''
+        for option in options:
+            text += f"{option}\n"
+
+        await message.reply(f"Savol : {question}\nVariantlar:\n{text}\n---------------------\nSo'rovnomani tasdiqlaysizmi?", reply_markup=kb.proove_poll)
+        await state.set_state(CreatePoll.proove)
+
+@dp.callback_query(CreatePoll.proove)
 async def send_appeal(callback_data: CallbackQuery, state: FSMContext) -> None:
-    if callback_data.data == "proove":
-        data = await state.get_data()
-        text = data.get('message_text')
-
+    if callback_data.data == 'proove':
+        msg = await callback_data.message.answer("So'rovnoma yaratildi va yuborilmoqda...",show_alert=True, reply_markup=kb.contact_with_admin)
+        await callback_data.message.delete()
         try:
-            await bot.send_poll(chat_id=7102300410,question=text.replace("$name","Umidjon Rustamov"),is_anonymous=False, options=["Test 1", "Test 2"] )
-            await bot.send_poll(chat_id=895775406,question=text.replace("$name","Samandar"),is_anonymous=False, options=["Test 1", "Test 2"] )
-            await callback_data.message.answer("So'rovnoma yuborildi!",show_alert=True)
-            await callback_data.message.delete()
+            await bot.copy_message(chat_id=msg.chat.id, from_chat_id=-1002465539645, message_id=3, reply_to_message_id=msg.message_id)
         except Exception as e:
             print(e)
-    elif callback_data.data == "cancel":
-        await callback_data.message.answer("So'rovnoma bekor qilindi!")
+        data = await state.get_data()
+        question = data.get('question')
+        options = data.get('options')
+        await fns.create_poll(question, options)
+        await state.clear()
+        print("Poll created")
+        return
+    
+    elif callback_data.data == 'cancel':
+        msg = await callback_data.message.reply("So'rovnoma bekor qilindi")
         await callback_data.message.delete()
+        try:
+            await bot.copy_message(chat_id=callback_data.message.chat.id, from_chat_id=-1002465539645, message_id=5, reply_to_message_id=msg.message_id)
+        except Exception as e:
+            print(e)
+        await state.clear()
+        print("Poll canceled")
+        return
+
+@dp.message(PollResults.poll_name)
+async def take_poll_name(message: Message, state: FSMContext) -> None:
+    if message.text == '!cancel':
+        await message.reply("Jarayon bekor qilindi")
+        await state.clear()
+        return
+    
+    with open('polls/poll_ids.json', 'r') as file:
+        data = json.load(file)
+    
+    polls = []
+
+    for item in data:
+        polls.append(item)
+    
+    poll_name = polls[int(message.text)-1]
+
+    res = await fns.get_result(poll_name)
+    text = f"Question: {res['question']}\n"
+    for key, value in res.items():
+        if key == 'question':
+            continue
+        text += f"{key}: {value}\n"
+    
+    await message.answer(text=text)
     await state.clear()
+    return
 
 
 @dp.message()
@@ -301,12 +393,35 @@ async def take_input(message: Message, state: FSMContext):
             await bot.send_document(chat_id=message.chat.id, document=file,caption="Foydalanuvchilar ro'yxati")
     elif message.text == '/test':
         await bot.send_message(chat_id=REPORT_ID, text="Test xabar")
-    elif message.text == '/create_poll':
-        if message.from_user.id not in admins:
-            await message.answer("Siz admin emassiz!")
+    elif message.text == '/polls':
+        if message.text == '!cancel':
+            await message.reply("Jarayon bekor qilindi")
+            await state.clear()
             return
-        await message.answer("Iltimos so'rovnoma savolini kiriting")
-        await state.set_state(CreatePoll.message_text)
+        names = []
+        text = ''
+
+        with open('polls/poll_ids.json', 'r') as file:
+            data = json.load(file)
+        
+        for item in data:
+            count = 1
+            names.append(item)
+            text += f"{count}. {item}\n"
+            count += 1
+
+        req = "Tanlagan so'rovnomangizni raqamini kriting:"
+        full_text = f"{text}\n{req}"
+        await message.answer(text=full_text)
+        await state.set_state(PollResults.poll_name)
+        return
+
+
+    elif message.text == '/create_poll':
+        await message.reply("So'rovnoma savolini kiriting!")
+        await state.set_state(CreatePoll.question)
+        return
+    
 
 
 

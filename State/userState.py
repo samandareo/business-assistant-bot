@@ -16,5 +16,10 @@ class UserMessagesToAdmin(StatesGroup):
     message_proove = State()
 
 class CreatePoll(StatesGroup):
-    message_text = State()
-    message_proove = State()
+    question = State()
+    count = State()
+    option = State()
+    proove = State()
+    
+class PollResults(StatesGroup):
+    poll_name = State()

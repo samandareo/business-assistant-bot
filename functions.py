@@ -276,3 +276,110 @@ async def get_users_data_as_excel():
     except Exception as e:
         print(e)
         return None
+
+polls = []
+
+
+async def insert_data(poll_data, poll_ids, question):
+    try:
+        with open("polls/poll_data.json", "r") as file:
+            data = json.load(file)
+    except FileNotFoundError as e:
+        print(e)
+
+
+    try:
+        with open("polls/poll_ids.json", "r") as file:
+            polls_id = json.load(file)
+    except FileNotFoundError as e:
+        print(e)
+    
+    ids = {
+        f"{question}" : poll_ids
+    }
+    
+    data.update(poll_data)
+    polls_id.update(ids)
+
+    with open('polls/poll_data.json', "w") as file:
+        json.dump(data, file, indent=4)
+        print("New data added to [poll_data]")
+    
+    with open('polls/poll_ids.json', "w") as file:
+        json.dump(polls_id, file, indent=4)
+        print("New data added to [poll_data]")
+    
+    
+
+async def change_data(id, new_data):
+    with open('polls/poll_data.json', 'r') as file:
+        data = json.load(file)
+
+    data[id] = new_data
+
+    with open('polls/poll_data.json', 'w') as file:
+        json.dump(data, file, indent=4)
+        print(f"Data changed to \n{new_data}")
+
+async def get_result(name):
+    with open('polls/poll_ids.json', 'r') as file:
+        poll_ids = json.load(file)
+
+    with open('polls/poll_data.json', 'r') as file:
+        poll_data = json.load(file)
+    
+    main_question = ''
+    result = {}
+    for key, value in poll_data.items():
+        if key in poll_ids[name]:
+            if 'question' not in result:
+                main_question = value['question']
+                result['question'] = main_question
+                for option, count in value.items():
+                    if option == 'question':
+                        continue
+                    result[option] = count
+            else:
+                for option, count in value.items():
+                    if option == 'question':
+                        continue
+                    if option in result:
+                        result[option] += count
+                    else:
+                        result[option] = count
+
+    return result
+
+async def create_poll(received_question, received_options):
+        
+
+    data = {
+
+    }
+
+    poll_ids = []
+
+    users = await execute_query("SELECT user_id, name FROM bot_users")
+    for user in users:
+        try:
+            options = received_options
+            question = received_question.replace("$name", user['name'])
+
+            poll_message = await bot.send_poll(chat_id=user['id'],question=question, options=options)
+
+            ##############################
+            poll_id = poll_message.poll.id
+            poll_ids.append(poll_id)
+
+            data[poll_id] = {}
+            data[poll_id]['question'] = question
+
+            for option in options:
+                data[poll_id][option] = 0
+
+        except Exception as e:
+            print(e)
+            continue
+    
+
+    await insert_data(data, poll_ids, question)   

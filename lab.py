@@ -2,6 +2,7 @@ import asyncio
 import logging
 import sys
 import re
+import json
 
 import asyncpg
 from aiogram import Bot, Dispatcher, types
@@ -10,8 +11,10 @@ from aiogram.enums import ParseMode
 from aiogram.filters.command import CommandStart
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.fsm.context import FSMContext
-from aiogram.types import Message
-from State.userState import UserState
+from aiogram.types import Message, Poll, CallbackQuery
+from State.userState import UserState, CreatePoll, PollResults
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
+import Keyboards.keyboards as kb
 
 import json
 
@@ -30,101 +33,277 @@ users = [
         "id": 895775406,
         "name": "Samandar"
     },
-    {
-        "id": 1586676962,
-        "name": "Umid"
-    },
+    # {
+    #     "id": 7102300410,
+    #     "name": "Umidjon"
+    # },
     {
         "id": 5881965498,
         "name": "Sam"
     }
 ]
 
-@dp.message()
-async def handle_message(message: types.Message) -> None:
-    # if message.video:
-    #     await message.answer_video(message.video.file_id,caption=message.caption)
-    # elif message.photo:
-    #     await message.answer_photo(message.photo[-1].file_id,caption=message.caption)
-    # elif message.audio:
-    #     await message.answer_audio(message.audio.file_id,caption=message.caption)
-    # elif message.voice:
-    #     await message.answer_voice(message.voice.file_id,caption=message.caption)
-    # elif message.document:
-    #     await message.answer_document(message.document.file_id,caption=message.caption)
-    # elif message.sticker:
-    #     await message.answer_sticker(message.sticker.file_id)
-    # elif message.animation:
-    #     await message.answer_animation(message.animation.file_id,caption=message.caption)
-    # elif message.video_note:
-    #     await message.answer_video_note(message.video_note.file_id)
-    # elif message.location:
-    #     await message.answer_location(message.location.latitude,message.location.longitude)
-    # elif message.text:
-    #     await message.answer(message.text)
+@dp.poll()
+async def handler_poll(poll: Poll):
+    poll_id = poll.id
+    question = poll.question
+    options = poll.options
+
+    data = {
+        'question' : question
+    }
+    print(f"Poll ID: {poll_id}, Question: {question}")
+    for option in options:
+        data[option.text] = option.voter_count
+        print(f"Option: {option.text}, Voter Count: {option.voter_count}")
+    
+    await change_data(poll_id,data)
+
+
+
+polls = []
+
+
+async def insert_data(poll_data, poll_ids, question):
+    try:
+        with open("polls/poll_data.json", "r") as file:
+            data = json.load(file)
+    except FileNotFoundError as e:
+        print(e)
+
+
+    try:
+        with open("polls/poll_ids.json", "r") as file:
+            polls_id = json.load(file)
+    except FileNotFoundError as e:
+        print(e)
+    
+    ids = {
+        f"{question}" : poll_ids
+    }
+    
+    data.update(poll_data)
+    polls_id.update(ids)
+
+    with open('polls/poll_data.json', "w") as file:
+        json.dump(data, file, indent=4)
+        print("New data added to [poll_data]")
+    
+    with open('polls/poll_ids.json', "w") as file:
+        json.dump(polls_id, file, indent=4)
+        print("New data added to [poll_data]")
+    
+    
+
+async def change_data(id, new_data):
+    with open('polls/poll_data.json', 'r') as file:
+        data = json.load(file)
+
+    data[id] = new_data
+
+    with open('polls/poll_data.json', 'w') as file:
+        json.dump(data, file, indent=4)
+        print(f"Data changed to \n{new_data}")
+
+async def get_result(name):
+    with open('polls/poll_ids.json', 'r') as file:
+        poll_ids = json.load(file)
+
+    with open('polls/poll_data.json', 'r') as file:
+        poll_data = json.load(file)
+    
+    main_question = ''
+    result = {}
+    for key, value in poll_data.items():
+        if key in poll_ids[name]:
+            if 'question' not in result:
+                main_question = value['question']
+                result['question'] = main_question
+                for option, count in value.items():
+                    if option == 'question':
+                        continue
+                    result[option] = count
+            else:
+                for option, count in value.items():
+                    if option == 'question':
+                        continue
+                    if option in result:
+                        result[option] += count
+                    else:
+                        result[option] = count
+
+    return result
+
+async def create_poll(received_question, received_options):
+        
+
+    data = {
+
+    }
+
+    poll_ids = []
+
     for user in users:
         try:
-            print(message.poll)
-            if message.text:
-                await bot.send_message(user['id'],message.text.replace("$name", user['name']), disable_web_page_preview=True)
-            elif message.caption:
-                await bot.copy_message(user['id'],message.chat.id,message.message_id, caption=message.caption.replace("$name", user['name']))
-            elif not message.text and not message.caption:
-                if message.poll:
-                    await bot.forward_message(user['id'],message.chat.id,message.message_id)
-                await bot.copy_message(user['id'],message.chat.id,message.message_id)
+            options = received_options
+            question = received_question.replace("$name", user['name'])
+
+            poll_message = await bot.send_poll(chat_id=user['id'],question=question, options=options)
+
+            ##############################
+            poll_id = poll_message.poll.id
+            poll_ids.append(poll_id)
+
+            data[poll_id] = {}
+            data[poll_id]['question'] = question
+
+            for option in options:
+                data[poll_id][option] = 0
+
         except Exception as e:
             print(e)
             continue
-
-
-# @dp.message(UserState.message_text_id)
-# async def take_id(message: Message, state: FSMContext) -> None:
-#     await state.update_data(message_text_id=message.text)
-#     await message.answer("Please enter the new message text.")
-#     await state.set_state(UserState.message_text)
-
-# @dp.message(UserState.message_text)
-# async def take_text(message: Message, state: FSMContext) -> None:
-#     new_data = await state.get_data()
-#     message_text_id = new_data.get('message_text_id')
-#     message_text = message.text
-
-#     with open('extras/messages.json', 'r') as file:
-#         data = json.load(file)
-    
-#     data[f"msg{message_text_id}"] = message_text
-
-#     with open('extras/messages.json', 'w') as file:
-#         json.dump(data, file, indent=4)
-
-#     await message.answer(f"Message number {message_text_id} has been changed.")
-#     await state.clear()
     
 
-
-# @dp.message()
-# async def take_input(message: Message, state: FSMContext):
-#     if message.text == '/change_message':
-#         await message.answer("Please enter the message number you want to change.")
-#     elif message.text == '/sendMe':
-#         with open('extras/messages.json', 'r') as file:
-#             data = json.load(file)
-#         name = message.from_user.first_name
-#         send_message_text = f"{data['msg1'].replace('$name', name)}"
-#         await message.answer(send_message_text,protect_content=True,disable_web_page_preview=True)
-#         return
-#     elif message.text == '/sendMe2':
-#         with open('extras/messages.json', 'r') as file:
-#             data = json.load(file)
-#         name = message.from_user.first_name
-#         send_message_text = f"{data['msg2'].replace('$name', name)}"
-#         await message.answer(send_message_text,protect_content=True,disable_web_page_preview=True)
-#         return
-#     await state.set_state(UserState.message_text_id)
+    await insert_data(data, poll_ids, question)            
 
 
+@dp.message(CreatePoll.question)
+async def take_question(message: Message, state: FSMContext) -> None:
+    if message.text == '!cancel':
+        await message.reply("Jarayon bekor qilindi")
+        await state.clear()
+        return
+    
+    await state.update_data(question=message.text)
+    await message.reply("Qabul qilindi! So'rovnomada nechta javob/variant bo'lishi kerak?")
+    await state.set_state(CreatePoll.count)
 
+@dp.message(CreatePoll.count)
+async def take_count(message: Message, state: FSMContext) -> None:
+    if message.text == '!cancel':
+        await message.reply("Jarayon bekor qilindi")
+        await state.clear()
+        return
+    
+    await state.update_data(count=int(message.text), options=[])
+    await message.reply("Axa! Iltimos, 1 - variantni kiriting:")
+    await state.set_state(CreatePoll.option)
+
+
+@dp.message(CreatePoll.option)
+async def take_options(message: Message, state: FSMContext) -> None:
+    if message.text == '!cancel':
+        await message.reply("Jarayon bekor qilindi")
+        await state.clear()
+        return
+    
+    user_data = await state.get_data()
+    options = user_data.get('options', [])
+    count = user_data.get('count')
+
+    options.append(message.text)
+    await state.update_data(options=options)
+
+    if len(options) < count:
+        await message.reply(f"Qabul qilindi! {len(options)+1}-variantni kiriting:")
+        await state.set_state(CreatePoll.option)
+        return
+    else:
+        question = user_data.get('question')
+        options = user_data.get('options')
+        text = ''
+        for option in options:
+            text += f"{option}\n"
+
+        await message.reply(f"Savol : {question}\nVariantlar:\n{text}\n---------------------\nSo'rovnomani tasdiqlaysizmi?", reply_markup=kb.proove_poll)
+        await state.set_state(CreatePoll.proove)
+
+@dp.callback_query(CreatePoll.proove)
+async def send_appeal(callback_data: CallbackQuery, state: FSMContext) -> None:
+    if callback_data.data == 'proove':
+        msg = await callback_data.message.answer("So'rovnoma yaratildi va yuborilmoqda...",show_alert=True, reply_markup=kb.contact_with_admin)
+        await callback_data.message.delete()
+        try:
+            await bot.copy_message(chat_id=msg.chat.id, from_chat_id=-1002465539645, message_id=3, reply_to_message_id=msg.message_id)
+        except Exception as e:
+            print(e)
+        data = await state.get_data()
+        question = data.get('question')
+        options = data.get('options')
+        await create_poll(question, options)
+        await state.clear()
+        print("Poll created")
+        return
+    elif callback_data.data == 'cancel':
+        msg = await callback_data.message.reply("So'rovnoma bekor qilindi")
+        await callback_data.message.delete()
+        try:
+            await bot.copy_message(chat_id=callback_data.message.chat.id, from_chat_id=-1002465539645, message_id=5, reply_to_message_id=msg.message_id)
+        except Exception as e:
+            print(e)
+        await state.clear()
+        print("Poll canceled")
+        return
+
+@dp.message(PollResults.poll_name)
+async def take_poll_name(message: Message, state: FSMContext) -> None:
+    if message.text == '!cancel':
+        await message.reply("Jarayon bekor qilindi")
+        await state.clear()
+        return
+    
+    with open('polls/poll_ids.json', 'r') as file:
+        data = json.load(file)
+    
+    polls = []
+
+    for item in data:
+        polls.append(item)
+    
+    poll_name = polls[int(message.text)-1]
+
+    res = await get_result(poll_name)
+    text = f"Question: {res['question']}\n"
+    for key, value in res.items():
+        if key == 'question':
+            continue
+        text += f"{key}: {value}\n"
+    
+    await message.answer(text=text)
+    await state.clear()
+    return
+
+
+@dp.message()
+async def handle_message(message: types.Message, state: FSMContext) -> None:
+    if message.text == '/polls':
+
+        names = []
+        text = ''
+
+        with open('polls/poll_ids.json', 'r') as file:
+            data = json.load(file)
+        
+        for item in data:
+            count = 1
+            names.append(item)
+            text += f"{count}. {item}\n"
+            count += 1
+
+        req = "Tanlagan so'rovnomangizni raqamini kriting:"
+        full_text = f"{text}\n{req}"
+        await message.answer(text=full_text)
+        await state.set_state(PollResults.poll_name)
+        return
+
+
+    elif message.text == '/create_poll':
+        await message.reply("So'rovnoma savolini kiriting!")
+        await state.set_state(CreatePoll.question)
+        return
+
+    
 
 
 async def main() -> None:
