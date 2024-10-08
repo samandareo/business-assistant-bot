@@ -403,9 +403,9 @@ async def take_input(message: Message, state: FSMContext):
 
         with open('polls/poll_ids.json', 'r') as file:
             data = json.load(file)
-        
+            
+        count = 1   
         for item in data:
-            count = 1
             names.append(item)
             text += f"{count}. {item}\n"
             count += 1
