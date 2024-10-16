@@ -12,6 +12,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.fsm.context import FSMContext
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from aiogram.types import Message, CallbackQuery, ReplyKeyboardRemove, FSInputFile, Poll
+from aiogram.exceptions import TelegramRetryAfter
 
 from database import execute_query, fetch_query, init_db
 import functions as fns
@@ -130,18 +131,16 @@ async def take_text(message: Message, state: FSMContext) -> None:
 
     await message.answer(f"Message number {message_text_id} has been changed.")
     await state.clear()
-    
-@dp.message(AdminState.message_text)
-async def send_to_all(message: Message, state: FSMContext) -> None:
-    message_text = message.text
-    if message_text == "!cancel":
-        await message.reply("Jarayon bekor qilindi!")
-        await state.clear()
-        return
-    
-    users = await fetch_query("SELECT user_id, name FROM bot_users;")
-    print(users)
+
+brodcast_task = None
+
+async def rasilka(users, message):
+    global broadcast_task
+    cnt = 0
     for user in users:
+        if broadcast_task is not None and broadcast_task.cancelled():
+            print("Broadcast task was cancelled.")
+            break
         try:
             if message.text:
                 await bot.send_message(user['user_id'],message.text.replace("$name", user['name']), disable_web_page_preview=True)
@@ -149,14 +148,42 @@ async def send_to_all(message: Message, state: FSMContext) -> None:
                 await bot.copy_message(user['user_id'],message.chat.id,message.message_id, caption=message.caption.replace("$name", user['name']))
             elif not message.text and not message.caption:
                 await bot.copy_message(user['user_id'],message.chat.id,message.message_id)
-            await message.answer("Xabar jo'natildi!")
+            print(f"Message sent to {user['name']} ({user['user_id']})")
+            cnt += 1
+        except TelegramRetryAfter as e:
+            print(f'Rate limit exceeded. Sleeping for {e.timeout} seconds.')
+            await asyncio.sleep(e.timeout)
+            if message.text:
+                await bot.send_message(user['user_id'],message.text.replace("$name", user['name']), disable_web_page_preview=True)
+            elif message.caption:
+                await bot.copy_message(user['user_id'],message.chat.id,message.message_id, caption=message.caption.replace("$name", user['name']))
+            elif not message.text and not message.caption:
+                await bot.copy_message(user['user_id'],message.chat.id,message.message_id)
+            print(f"Message sent to {user['name']} ({user['user_id']})")
+            cnt += 1
+
         except Exception as e:
             if 'Forbidden' in str(e):
                 await execute_query(f"DELETE FROM bot_users WHERE bot_users.user_id = '{user['user_id']}';")
             print(e)
             continue
         print(f"Message sent to {user['name']} ({user['user_id']})")
-        await asyncio.sleep(1)
+        await asyncio.sleep(0.05)
+    await message.answer(f"Xabar {cnt} ta foydalanuvchiga jo'natildi!")
+
+@dp.message(AdminState.message_text)
+async def send_to_all(message: Message, state: FSMContext) -> None:
+    global brodcast_task
+    message_text = message.text
+    if message_text == "!cancel":
+        await message.reply("Jarayon bekor qilindi!")
+        await state.clear()
+        return
+    
+    users = await fetch_query("SELECT user_id, name FROM bot_users;")
+    # We need to run the function in a separate task to avoid blocking the event loop
+    brodcast_task = asyncio.create_task(rasilka(users, message))
+
     await state.clear()
 
 @dp.message(AdminStateOne.userOneId)
@@ -415,11 +442,17 @@ async def take_input(message: Message, state: FSMContext):
         await message.answer(text=full_text)
         await state.set_state(PollResults.poll_name)
         return
-
-
     elif message.text == '/create_poll':
         await message.reply("So'rovnoma savolini kiriting!")
         await state.set_state(CreatePoll.question)
+        return
+    elif message.text == '/stop_rasilka':
+        global brodcast_task
+        if brodcast_task is not None and not brodcast_task.cancelled():
+            brodcast_task.cancel()
+            await message.answer("Rasilkani to'xtatish uchun buyruq qabul qilindi.")
+        else:
+            await message.answer("Rasilkani to'xtatish uchun hech qanday buyruq qabul qilinmadi.")
         return
     
 

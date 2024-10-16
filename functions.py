@@ -381,6 +381,7 @@ async def create_poll(received_question, received_options):
 
             for option in options:
                 data[poll_id][option] = 0
+            asyncio.sleep(0.05)
 
         except Exception as e:
             print(e)
