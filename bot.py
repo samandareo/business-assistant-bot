@@ -23,6 +23,9 @@ from credentials import admins
 from Userbot.userbot import initialize_clients
 from Userbot.assign import assign_task_to_operator
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 
 
 from credentials import BOT_TOKEN, CHANNEL_ID, APPEAL_CHANNEL_ID, TEST_BOT_TOKEN, REPORT_ID
@@ -132,7 +135,7 @@ async def take_text(message: Message, state: FSMContext) -> None:
     await message.answer(f"Message number {message_text_id} has been changed.")
     await state.clear()
 
-brodcast_task = None
+broadcast_task = None
 
 async def rasilka(users, message):
     global broadcast_task
@@ -182,7 +185,10 @@ async def send_to_all(message: Message, state: FSMContext) -> None:
     
     users = await fetch_query("SELECT user_id, name FROM bot_users;")
     # We need to run the function in a separate task to avoid blocking the event loop
-    brodcast_task = asyncio.create_task(rasilka(users, message))
+    try:
+        brodcast_task = asyncio.create_task(rasilka(users, message))
+    except Exception as e:
+        logger.info(f"Error sending message to users: {e}")
 
     await state.clear()
 
@@ -468,5 +474,4 @@ async def main() -> None:
     await dp.start_polling(bot)
 
 if __name__ == '__main__':
-    # logging.basicConfig(level=logging.INFO, stream=sys.stdout)
     asyncio.run(main())
