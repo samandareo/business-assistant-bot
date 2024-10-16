@@ -143,6 +143,7 @@ async def rasilka(users, message):
     for user in users:
         if broadcast_task is not None and broadcast_task.cancelled():
             print("Broadcast task was cancelled.")
+            await message.reply(f"Xabar {cnt} ta foydalanuvchiga jo'natildi!")
             break
         try:
             if message.text:
@@ -187,6 +188,7 @@ async def send_to_all(message: Message, state: FSMContext) -> None:
     # We need to run the function in a separate task to avoid blocking the event loop
     try:
         brodcast_task = asyncio.create_task(rasilka(users, message))
+        await message.answer("Rasilka boshlandi!")
     except Exception as e:
         logger.info(f"Error sending message to users: {e}")
 
