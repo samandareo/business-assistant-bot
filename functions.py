@@ -360,6 +360,7 @@ async def create_poll(received_question, received_options):
     poll_ids = []
 
     users = await fetch_query("SELECT user_id, name FROM bot_users")
+    cnt = 0
     for user in users:
         try:
             options = received_options
@@ -382,10 +383,13 @@ async def create_poll(received_question, received_options):
             for option in options:
                 data[poll_id][option] = 0
             asyncio.sleep(0.05)
+            cnt += 1
 
         except Exception as e:
             print(e)
             continue
+    print(f"Polls sent to {cnt} users")
+    await bot.send_message(chat_id=7102300410,text=f"{cnt} ta foydalanuvchiga so'rovnoma yuborildi✅")
     
 
     await insert_data(data, poll_ids, question)   
