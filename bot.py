@@ -471,7 +471,7 @@ async def main() -> None:
     await init_db()
     # await initialize_clients()
     scheduler = AsyncIOScheduler()
-    scheduler.add_job(assign_task_to_operator, 'interval',hours=1)
+    # scheduler.add_job(assign_task_to_operator, 'interval',hours=1)
     scheduler.add_job(fns.send_message_to_users, 'interval', hours=2)
     scheduler.start()
     await dp.start_polling(bot)
