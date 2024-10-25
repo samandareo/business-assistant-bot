@@ -359,7 +359,7 @@ async def create_poll(received_question, received_options):
 
     poll_ids = []
 
-    users = await execute_query("SELECT user_id, name FROM bot_users")
+    users = await fetch_query("SELECT user_id, name FROM bot_users")
     for user in users:
         try:
             options = received_options
