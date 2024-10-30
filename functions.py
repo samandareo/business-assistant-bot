@@ -366,10 +366,12 @@ async def create_poll(received_question, received_options):
             options = received_options
             question = received_question.replace("$name", user['name'])
             try:
-                poll_message = await bot.send_poll(chat_id=user['id'],question=question, options=options)
+                poll_message = await bot.send_poll(chat_id=user['user_id'],question=question, options=options)
+                print(f"Poll sent to {user['name']} ({user['user_id']})")
+                
             except Exception as e:
                 if 'Forbidden' in str(e):
-                    await execute_query(f"DELETE FROM bot_users WHERE bot_users.user_id = '{user['id']}';")
+                    await execute_query(f"DELETE FROM bot_users WHERE user_id = '{user['id']}';")
                 print(e)
                 continue
 
