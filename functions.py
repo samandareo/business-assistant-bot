@@ -1,12 +1,14 @@
 import asyncio
 import json
+import logging
 from datetime import datetime, timedelta
 
 
 from database import execute_query, fetch_query, init_db
 from bot import bot
 
-from Userbot.userbot import initialize_clients, send_to_users, copy_to_users
+logging.basicConfig(level=logging.INFO, format="%(asctime)s:%(lineno)s => %(message)s")
+
 from credentials import REPORT_ID
 
 import pandas as pd
@@ -18,7 +20,7 @@ async def get_users(time, msg_id):
             msg_id = tuple(msg_id)
         query = """
         SELECT bu.user_id, bu.username, bu.name, bu.cur_msg_id, bu.res_id 
-        FROM bot_users as bu 
+        FROM users as bu 
         LEFT JOIN end_users as eu ON bu.phone_number = eu.phone_number 
         WHERE eu.phone_number IS NULL 
             AND bu.updated_at <= $1 
@@ -36,7 +38,7 @@ async def get_users_for_first(time):
     try:
         query = """
         SELECT bu.user_id,bu.username, bu.name, bu.cur_msg_id, bu.res_id 
-        FROM bot_users as bu 
+        FROM users as bu 
         LEFT JOIN end_users as eu ON bu.phone_number = eu.phone_number
         WHERE eu.phone_number IS NULL 
           AND bu.created_at <= $1
@@ -78,10 +80,10 @@ async def send_first_message():
 
             await bot.send_message(chat_id=user['user_id'], text=data.replace('$name', user['name']), disable_web_page_preview=True)
             await asyncio.sleep(1)
-            await execute_query("UPDATE bot_users SET updated_at = $1, cur_msg_id = $2 WHERE user_id = $3;", (datetime.now(), msg_id, user['user_id']))
+            await execute_query("UPDATE users SET updated_at = $1, cur_msg_id = $2 WHERE user_id = $3;", (datetime.now(), msg_id, user['user_id']))
         except Exception as e:
             if 'Forbidden' in str(e):
-                await execute_query("DELETE FROM bot_users WHERE user_id = $1;", (user['user_id'],))
+                await execute_query("DELETE FROM users WHERE user_id = $1;", (user['user_id'],))
             print(e)
             continue
         print(f"Message sent to {user['name']} ({user['user_id']})")
@@ -123,12 +125,12 @@ async def send_24_messages():
                 # # ------------------- #
 
                 await bot.send_message(chat_id=user['user_id'], text=data[f"msg{user['cur_msg_id']}"].replace('$name', user['name']), disable_web_page_preview=True)
-                # await execute_query("UPDATE bot_users SET updated_at = $1, cur_msg_id = $2 WHERE user_id = $3;", (datetime.now(), msg_id, user['user_id']))
+                # await execute_query("UPDATE users SET updated_at = $1, cur_msg_id = $2 WHERE user_id = $3;", (datetime.now(), msg_id, user['user_id']))
                 await asyncio.sleep(1)
-                await execute_query("UPDATE bot_users SET updated_at = $1, cur_msg_id = $2 WHERE user_id = $3;", (datetime.now(), msg_id, user['user_id']))
+                await execute_query("UPDATE users SET updated_at = $1, cur_msg_id = $2 WHERE user_id = $3;", (datetime.now(), msg_id, user['user_id']))
             except Exception as e:
                 if 'Forbidden' in str(e):
-                    await execute_query("DELETE FROM bot_users WHERE user_id = $1;", (user['user_id'],))
+                    await execute_query("DELETE FROM users WHERE user_id = $1;", (user['user_id'],))
                 print(e)
                 continue
             print(f"Message sent to {user['name']} ({user['user_id']})")
@@ -154,11 +156,11 @@ async def send_24_messages():
                 await asyncio.sleep(0.1)
                 await bot.send_message(chat_id=user['user_id'], text=data[f"msg{user['cur_msg_id']}2"].replace('$name', user['name']), disable_web_page_preview=True)
                 await asyncio.sleep(0.1)
-                await execute_query("UPDATE bot_users SET updated_at = $1, cur_msg_id = $2 WHERE user_id = $3;", (datetime.now(), msg_id, user['user_id']))
+                await execute_query("UPDATE users SET updated_at = $1, cur_msg_id = $2 WHERE user_id = $3;", (datetime.now(), msg_id, user['user_id']))
 
             except Exception as e:
                 if 'Forbidden' in str(e):
-                    await execute_query("DELETE FROM bot_users WHERE user_id = $1;", (user['user_id'],))
+                    await execute_query("DELETE FROM users WHERE user_id = $1;", (user['user_id'],))
                 print(e)
                 continue
             print(f"Message sent to {user['name']} ({user['user_id']})")
@@ -205,10 +207,10 @@ async def send_48_messages():
 
             await bot.send_message(chat_id=user['user_id'], text=data[f"msg{user['cur_msg_id']}"].replace('$name', user['name']), disable_web_page_preview=True)
             await asyncio.sleep(0.1)
-            await execute_query("UPDATE bot_users SET updated_at = $1, cur_msg_id = $2 WHERE user_id = $3;", (datetime.now(), msg_id, user['user_id']))
+            await execute_query("UPDATE users SET updated_at = $1, cur_msg_id = $2 WHERE user_id = $3;", (datetime.now(), msg_id, user['user_id']))
         except Exception as e:
             if 'Forbidden' in str(e):
-                await execute_query("DELETE FROM bot_users WHERE user_id = $1;", (user['user_id'],))
+                await execute_query("DELETE FROM users WHERE user_id = $1;", (user['user_id'],))
             print(e)
             continue
         await asyncio.sleep(0.7)
@@ -241,7 +243,7 @@ async def get_users_data_as_excel():
     try:
         query = """
         SELECT user_id, username, name, phone_number, DATE(created_at) 
-        FROM bot_users
+        FROM users
         """
         data = await fetch_query(query=query)
         if not data:
@@ -270,8 +272,8 @@ async def get_users_data_as_excel():
         
         new_data = pd.DataFrame(new_data)
         now = datetime.now().strftime("%Y_%m_%d")
-        new_data.to_excel(f'extras/bot_users_data_{now}.xlsx', index=False)
-        return f"extras/bot_users_data_{now}.xlsx"
+        new_data.to_excel(f'extras/users_data_{now}.xlsx', index=False)
+        return f"extras/users_data_{now}.xlsx"
 
     except Exception as e:
         print(e)
@@ -359,7 +361,7 @@ async def create_poll(received_question, received_options):
 
     poll_ids = []
 
-    users = await fetch_query("SELECT user_id, name FROM bot_users")
+    users = await fetch_query("SELECT user_id, name FROM users")
     cnt = 0
     for user in users:
         try:
@@ -371,7 +373,7 @@ async def create_poll(received_question, received_options):
                 
             except Exception as e:
                 if 'Forbidden' in str(e):
-                    await execute_query(f"DELETE FROM bot_users WHERE user_id = '{user['id']}';")
+                    await execute_query(f"DELETE FROM users WHERE user_id = '{user['id']}';")
                 print(e)
                 continue
 
@@ -395,3 +397,49 @@ async def create_poll(received_question, received_options):
     
 
     await insert_data(data, poll_ids, question)   
+
+async def show_books():
+    query = "SELECT * FROM books"
+    books = await fetch_query(query)
+
+    logging.info(f"Books: {books}")
+    books_text = "Kitoblar ro'yxati:\n\n"
+    for book in books:
+        books_text += f"{book['book_name']} - {book['book_id']}: {book['book_location_link']}\n"
+    return books_text
+
+async def add_book(book_name, book_id, book_link):
+    try:
+        query = "INSERT INTO books (book_name, book_id, book_location_link) VALUES ($1, $2, $3);"
+        await execute_query(query, (book_name, book_id, book_link))
+        return "success"
+    except Exception as e:
+        logging.error(f"Error: {e}")
+        return None
+    
+async def edit_book(book_id, new_book_name, new_book_link, new_book_id=0):
+    if new_book_id == 0:
+        try:
+            query = "UPDATE books SET book_name = $1, book_location_link = $2 WHERE book_id = $3;"
+            await execute_query(query, (new_book_name, new_book_link, book_id))
+            return "success"
+        except Exception as e:
+            logging.error(f"Error: {e}")
+            return None
+    else:
+        try:
+            query = "UPDATE books SET book_id = $1, book_name = $2, book_location_link = $3 WHERE book_id = $4;"
+            await execute_query(query, (new_book_id, new_book_name, new_book_link, book_id))
+            return "success"
+        except Exception as e:
+            logging.error(f"Error: {e}")
+            return None
+        
+async def delete_book(book_id):
+    try:
+        query = "DELETE FROM books WHERE book_id = $1;"
+        await execute_query(query, (book_id,))
+        return "success"
+    except Exception as e:
+        logging.error(f"Error: {e}")
+        return None

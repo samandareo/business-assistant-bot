@@ -17,12 +17,10 @@ from aiogram.exceptions import TelegramRetryAfter
 
 from database import execute_query, fetch_query, init_db
 import functions as fns
-from State.userState import UserState, AdminState, AdminStateOne, UserMessagesToAdmin, CreatePoll, PollResults
+from State.userState import UserState, AdminState, AdminStateOne, UserMessagesToAdmin, CreatePoll, PollResults, ChangeBooks
 import Keyboards.keyboards as kb
 
 from credentials import admins
-from Userbot.userbot import initialize_clients
-from Userbot.assign import assign_task_to_operator
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -67,7 +65,7 @@ async def handle_start(message: Message) -> None:
             if msg_id ==31:
                 continue
             await bot.copy_message(chat_id=message.chat.id, from_chat_id=CHANNEL_ID, message_id=msg_id)
-        user_data_query = f"INSERT INTO bot_users (user_id, username, name, phone_number, created_at) VALUES ($1, $2, $3, $4, NOW()) ON CONFLICT (user_id) DO NOTHING;"
+        user_data_query = f"INSERT INTO users (user_id, username, name, phone_number, created_at) VALUES ($1, $2, $3, $4, NOW()) ON CONFLICT (user_id) DO NOTHING;"
         await execute_query(user_data_query,(str(message.from_user.id), message.from_user.username, message.from_user.first_name, None))
 
     elif special_data:
@@ -84,14 +82,14 @@ async def handle_start(message: Message) -> None:
         # Forward book from private channel to user
         # Replace 'YOUR_CHANNEL_ID' with actual channel ID
         await bot.copy_message(chat_id=message.chat.id, from_chat_id=CHANNEL_ID, message_id=msg_id)
-                # Store user information in bot_users table
-        user_data_query = f"INSERT INTO bot_users (user_id, username, name, phone_number, created_at) VALUES ($1, $2, $3, $4, NOW()) ON CONFLICT (user_id) DO NOTHING;"
+                # Store user information in users table
+        user_data_query = f"INSERT INTO users (user_id, username, name, phone_number, created_at) VALUES ($1, $2, $3, $4, NOW()) ON CONFLICT (user_id) DO NOTHING;"
         await execute_query(user_data_query,(str(message.from_user.id), message.from_user.username, message.from_user.first_name, phone_number))
 
     else:
-        await message.reply(f"Assalomu alekum, {message.from_user.first_name}. \nXush kelibsiz!\n\nSizni qiziqtirayotgan kitobchani olish uchun, iltimos biz sms orqali yuborgan maxsus link orqali botga tashrif buyuring😊\nShunda men siz hohlagan kitobchani yuboraman.\n\nHurmat bilan The Wolf jamoasi!", reply_markup=kb.contact_with_admin)
+        await message.reply(f"Assalomu alekum, {message.from_user.first_name}. \nXush kelibsiz!\n\nSizni qiziqtirayotgan kitobchani olish uchun, iltimos biz sms orqali yuborgan maxsus link orqali botga tashrif buyuring😊\nShunda men siz hohlagan kitobchani yuboraman.\n\nHurmat bilan Sardor Valixanov!", reply_markup=kb.contact_with_admin)
 
-        user_data_query = f"INSERT INTO bot_users (user_id, username, name, phone_number, created_at) VALUES ($1, $2, $3, $4, NOW()) ON CONFLICT (user_id) DO NOTHING;"
+        user_data_query = f"INSERT INTO users (user_id, username, name, phone_number, created_at) VALUES ($1, $2, $3, $4, NOW()) ON CONFLICT (user_id) DO NOTHING;"
         await execute_query(user_data_query,(str(message.from_user.id), message.from_user.username, message.from_user.first_name, None))
 
 
@@ -103,7 +101,7 @@ async def take_id(message: Message, state: FSMContext) -> None:
         await message.reply("Jarayon bekor qilindi!")
         return
     elif not message.text.isdigit():
-        await message.reply("Please enter the correct message number.")
+        await message.reply("Iltimos, xabar raqamini to'g'ri kiriting!")
         await state.set_state(UserState.message_text_id)
         return
     await state.update_data(message_text_id=message.text)
@@ -111,7 +109,7 @@ async def take_id(message: Message, state: FSMContext) -> None:
         data = json.load(file)
     
     message_text = data[f"msg{message.text}"]
-    await message.reply(f"Current message text: {message_text}\n\nPlease enter the new message text.")
+    await message.reply(f"Xabarning hozirgi holati: {message_text}\n\nIltimos yangi xabar matnini kiriting:")
     await state.set_state(UserState.message_text)
 
 @dp.message(UserState.message_text)
@@ -133,7 +131,7 @@ async def take_text(message: Message, state: FSMContext) -> None:
     with open('extras/messages.json', 'w') as file:
         json.dump(data, file, indent=4)
 
-    await message.answer(f"Message number {message_text_id} has been changed.")
+    await message.answer(f"{message_text_id} - xabar o'zgartirildi.")
     await state.clear()
 
 broadcast_task = None
@@ -143,7 +141,7 @@ async def rasilka(users, message):
     cnt = 0
     for user in users:
         if broadcast_task is not None and broadcast_task.cancelled():
-            print("Broadcast task was cancelled.")
+            print("Vazifa bekor qilindi!")
             await message.reply(f"Xabar {cnt} ta foydalanuvchiga jo'natildi!")
             break
         try:
@@ -169,7 +167,7 @@ async def rasilka(users, message):
 
         except Exception as e:
             if 'Forbidden' in str(e):
-                await execute_query(f"DELETE FROM bot_users WHERE bot_users.user_id = '{user['user_id']}';")
+                await execute_query(f"DELETE FROM users WHERE users.user_id = '{user['user_id']}';")
             print(e)
             continue
         print(f"Message sent to {user['name']} ({user['user_id']})")
@@ -185,7 +183,7 @@ async def send_to_all(message: Message, state: FSMContext) -> None:
         await state.clear()
         return
     
-    users = await fetch_query("SELECT user_id, name FROM bot_users;")
+    users = await fetch_query("SELECT user_id, name FROM users;")
     # We need to run the function in a separate task to avoid blocking the event loop
     try:
         brodcast_task = asyncio.create_task(rasilka(users, message))
@@ -205,7 +203,7 @@ async def take_message_one(message: Message, state: FSMContext) -> None:
         return
     else:
         wait_message = await message.answer("Foydalanuvchi qidirilmoqda...")
-        check = await fetch_query("SELECT * FROM bot_users WHERE user_id = $1;", (msg_text,))
+        check = await fetch_query("SELECT * FROM users WHERE user_id = $1;", (msg_text,))
 
     if not check:
         await wait_message.edit_text("Foydalanuvchi topilmadi😕")
@@ -227,7 +225,7 @@ async def send_to_one(message: Message, state: FSMContext) -> None:
     new_data = await state.get_data()
     user_id = new_data.get('user_id')
     message_text = new_data.get('message_text')
-    user = await fetch_query(f"SELECT name FROM bot_users WHERE user_id = '{user_id}';")
+    user = await fetch_query(f"SELECT name FROM users WHERE user_id = '{user_id}';")
     try:
         if message.text:
             await bot.send_message(chat_id=user_id,text=message_text.replace("$name", user[0]['name']), disable_web_page_preview=True)
@@ -238,7 +236,7 @@ async def send_to_one(message: Message, state: FSMContext) -> None:
         await message.answer("Xabar jo'natildi!")
     except Exception as e:
         if 'Forbidden' in str(e):
-            await execute_query(f"DELETE FROM bot_users WHERE bot_users.user_id = '{user_id}';")
+            await execute_query(f"DELETE FROM users WHERE users.user_id = '{user_id}';")
         print(e)
     await state.clear()
 
@@ -384,6 +382,165 @@ async def take_poll_name(message: Message, state: FSMContext) -> None:
     await state.clear()
     return
 
+# Change books -------------------------------------------------------------- #
+@dp.callback_query(ChangeBooks.choose_action)
+async def change_books(callback_data: CallbackQuery, state: FSMContext):
+    if callback_data.data == 'add_book':
+        await callback_data.message.answer("Kitob nomini kiriting:")
+        await state.set_state(ChangeBooks.book_name)
+    elif callback_data.data == 'edit_book':
+        await callback_data.message.answer("O'zgartirish uchun kitob ID raqamini kiriting:")
+        await state.set_state(ChangeBooks.book_id_edit)
+    elif callback_data.data == 'remove_book':
+        await callback_data.message.answer("O'chirish uchun kitob ID raqamini kiriting:")
+        await state.set_state(ChangeBooks.book_id_delete)
+    elif callback_data.data == 'cancel':
+        await callback_data.message.delete()
+        await state.clear()
+        return
+
+# Add book
+@dp.message(ChangeBooks.book_name)
+async def take_book_name_adding(message: Message, state: FSMContext):
+    if message.text == '!cancel':
+        await message.reply("Jarayon bekor qilindi")
+        await state.clear()
+        return
+    await state.update_data(book_name=message.text)
+    await message.answer("Kitob IDsini kiriting:")
+    await state.set_state(ChangeBooks.book_id)
+
+@dp.message(ChangeBooks.book_id)
+async def take_book_id_adding(message: Message, state: FSMContext):
+    if message.text == '!cancel':
+        await message.reply("Jarayon bekor qilindi")
+        await state.clear()
+        return
+    await state.update_data(book_id=message.text)
+    await message.answer("Kitob linkini kiriting:")
+    await state.set_state(ChangeBooks.book_link)
+
+@dp.message(ChangeBooks.book_link)
+async def take_book_link_adding(message: Message, state: FSMContext):
+    if message.text == '!cancel':
+        await message.reply("Jarayon bekor qilindi")
+        await state.clear()
+        return
+    new_data = await state.get_data()
+    book_name = new_data.get('book_name')
+    book_id = int(new_data.get('book_id'))
+    book_link = message.text
+    status = await fns.add_book(book_name, book_id, book_link)
+    if status == "success":
+        await message.reply("Kitob qo'shildi!")
+        await state.clear()
+        books = await fns.show_books()
+        await message.answer(books)
+    else:
+        await message.reply("Kitob qo'shilmadi. Iltimos qaytadan urinib ko'ring!")
+        await state.clear()
+        books = await fns.show_books()
+        await message.answer(books)
+
+
+# Edit book
+@dp.message(ChangeBooks.book_id_edit)
+async def take_book_id_editing(message: Message, state: FSMContext):
+    if message.text == '!cancel':
+        await message.reply("Jarayon bekor qilindi")
+        await state.clear()
+        return
+    await state.update_data(book_id=message.text)
+    await message.reply("Yangi kitob nomini kiriting:")
+    await state.set_state(ChangeBooks.book_name_edit)
+
+@dp.message(ChangeBooks.book_name_edit)
+async def take_book_name_editing(message: Message, state: FSMContext):
+    if message.text == '!cancel':
+        await message.reply("Jarayon bekor qilindi")
+        await state.clear()
+        return
+    await state.update_data(book_name=message.text)
+    await message.reply("Yangi kitob linkini kiriting:")
+    await state.set_state(ChangeBooks.book_link_edit)
+
+@dp.message(ChangeBooks.book_link_edit)
+async def take_book_link_editing(message: Message, state: FSMContext):
+    if message.text == '!cancel':
+        await message.reply("Jarayon bekor qilindi")
+        await state.clear()
+        return
+    await state.update_data(book_link=message.text)
+    await message.reply("Kitob ID raqamini o'zgartirishni hohlaysizmi?", reply_markup=kb.book_id_proove)
+    await state.set_state(ChangeBooks.new_book_id_proove)
+
+@dp.callback_query(ChangeBooks.new_book_id_proove)
+async def change_book_id(callback_data: CallbackQuery, state: FSMContext):
+    if callback_data.data == 'yes_change':
+        await callback_data.message.delete()
+        await callback_data.message.answer("Yangi kitob ID raqamini kiriting:")
+        await state.set_state(ChangeBooks.book_new_id_edit)
+    elif callback_data.data == 'no_change':
+        new_data = await state.get_data()
+        book_id = int(new_data.get('book_id'))
+        book_name = new_data.get('book_name')
+        book_link = new_data.get('book_link')
+        status = await fns.edit_book(book_id, book_name, book_link)
+        if status == "success":
+            await callback_data.message.answer( "Kitob o'zgartirildi!")
+            books = await fns.show_books()
+            await callback_data.message.answer(books)
+            await state.clear()
+        else:
+            await callback_data.message.answer("Kitob o'zgartirilmadi. Iltimos qaytadan urinib ko'ring!")
+            await state.clear()
+
+@dp.message(ChangeBooks.book_new_id_edit)
+async def take_new_book_id_editing(message: Message, state: FSMContext):
+    if message.text == '!cancel':
+        await message.reply("Jarayon bekor qilindi")
+        await state.clear()
+        return
+    
+    try:
+        new_data = await state.get_data()
+        book_id = int(new_data.get('book_id'))
+        book_name = new_data.get('book_name')
+        book_link = new_data.get('book_link')
+        new_book_id = int(message.text)
+        status = await fns.edit_book(book_id, book_name, book_link, new_book_id)
+    except Exception as e:
+        logging.error(e)
+        await message.reply("Kitob o'zgartirilmadi. Iltimos qaytadan urinib ko'ring!")
+        await state.clear()
+        return
+    if status == "success":
+        await message.reply("Kitob o'zgartirildi!")
+        books = await fns.show_books()
+        await message.answer(books)
+        await state.clear()
+
+#Delete book
+@dp.message(ChangeBooks.book_id_delete)
+async def take_book_id_deleting(message: Message, state: FSMContext):
+    if message.text == '!cancel':
+        await message.reply("Jarayon bekor qilindi")
+        await state.clear()
+        return
+    status = await fns.delete_book(int(message.text))
+    if status == "success":
+        await message.reply("Kitob o'chirildi!")
+        books = await fns.show_books()
+        await message.answer(books)
+        await state.clear()
+    else:
+        await message.reply(f"Kitob o'chirilmadi. {message.text} ID bilan kitob bo'lmasligi mumkin!\nIltimos qaytadan urinib ko'ring!")
+        await state.clear()
+        books = await fns.show_books()
+        await message.answer(books)
+
+    
+
 
 @dp.message()
 async def take_input(message: Message, state: FSMContext):
@@ -416,7 +573,7 @@ async def take_input(message: Message, state: FSMContext):
         if message.from_user.id not in admins:
             await message.answer("Siz admin emassiz!")
             return
-        users = await fetch_query("SELECT COUNT(*) FROM bot_users;")
+        users = await fetch_query("SELECT COUNT(*) FROM users;")
         await message.answer(f"Botda {users[0]['count']} ta foydalanuvchi mavjud.")
         return
     elif message.text == '/users':
@@ -463,17 +620,32 @@ async def take_input(message: Message, state: FSMContext):
         else:
             await message.answer("Rasilkani to'xtatish uchun hech qanday buyruq qabul qilinmadi.")
         return
+    elif message.text == '/books':
+        if message.from_user.id not in admins:
+            await message.answer("Siz admin emassiz!")
+            return
+        if message.text == '!cancel':
+            await message.reply("Jarayon bekor qilindi")
+            await state.clear()
+            return
+        
+        books = await fns.show_books()
+        await message.reply(books, reply_markup=kb.change_books)
+        await state.set_state(ChangeBooks.choose_action)
+        return
+        
+        
     
 
 
 
 async def main() -> None:
     await init_db()
-    # await initialize_clients()
-    scheduler = AsyncIOScheduler()
-    # scheduler.add_job(assign_task_to_operator, 'interval',hours=1)
-    scheduler.add_job(fns.send_message_to_users, 'interval', hours=2)
-    scheduler.start()
+    # # await initialize_clients()
+    # scheduler = AsyncIOScheduler()
+    # # scheduler.add_job(assign_task_to_operator, 'interval',hours=1)
+    # scheduler.add_job(fns.send_message_to_users, 'interval', hours=2)
+    # scheduler.start()
     await dp.start_polling(bot)
 
 if __name__ == '__main__':
